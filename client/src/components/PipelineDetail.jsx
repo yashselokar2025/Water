@@ -112,7 +112,7 @@ const PipelineDetail = () => {
                     >
                         Download Analytics
                     </button>
-                    <button onClick={() => navigate('/iot-simulation', { state: { pipelineId: id } })} className="bg-primary-500 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-primary-500/25 hover:shadow-primary-500/40 transition-all active:scale-95">
+                    <button onClick={() => navigate('/simulation-hub', { state: { pipelineId: id } })} className="bg-primary-500 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-primary-500/25 hover:shadow-primary-500/40 transition-all active:scale-95">
                         Add Telemetry Node
                     </button>
                     <button onClick={() => navigate('/map', { state: { focusId: id, type: 'pipeline' } })} className="bg-white dark:bg-gray-800 dark:text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl border border-gray-100 dark:border-gray-700 hover:bg-gray-50 transition-all active:scale-95">
@@ -262,7 +262,7 @@ const PipelineDetail = () => {
                                                 </div>
                                             ))}
                                             <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase w-fit ${sensor.riskLevel === 'High' ? 'bg-red-500 text-white' :
-                                                    (sensor.riskLevel === 'Medium' ? 'bg-amber-500 text-white' : 'bg-emerald-500 text-white')
+                                                (sensor.riskLevel === 'Medium' ? 'bg-amber-500 text-white' : 'bg-emerald-500 text-white')
                                                 }`}>
                                                 {sensor.riskLevel} STRISK
                                             </span>

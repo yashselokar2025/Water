@@ -290,6 +290,32 @@ router.post('/pipelines', async (req, res) => {
     }
 });
 
+// --- Pipeline Deletion (Cascading) ---
+router.delete('/pipelines/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const database = db.getDB();
+        // 1. Delete Overrides for all sensors in this pipeline
+        await database.run('DELETE FROM sensor_overrides WHERE sensor_id IN (SELECT id FROM sensors WHERE pipeline_id = ?)', [id]);
+
+        // 2. Delete Readings for all sensors in this pipeline
+        await database.run('DELETE FROM sensor_readings WHERE sensor_id IN (SELECT id FROM sensors WHERE pipeline_id = ?)', [id]);
+
+        // 3. Delete Alerts for all sensors in this pipeline
+        await database.run('DELETE FROM alerts WHERE sensor_id IN (SELECT id FROM sensors WHERE pipeline_id = ?)', [id]);
+
+        // 4. Delete Sensors
+        await database.run('DELETE FROM sensors WHERE pipeline_id = ?', [id]);
+
+        // 5. Delete Pipeline
+        await database.run('DELETE FROM pipelines WHERE id = ?', [id]);
+
+        res.json({ success: true, message: 'Infrastructure segment and all associated assets decommissioned' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // --- Enhanced Sensor Addition ---
 router.post('/sensors', async (req, res) => {
     const { name, location, lat, lng, pipeline_id } = req.body;

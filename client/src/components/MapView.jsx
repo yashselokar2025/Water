@@ -121,10 +121,18 @@ const MapView = ({ sensors, pipelines, isAdmin, onCoordinateSelect, drawingMode,
 
     const getPipelineStats = (pipeId) => {
         const pipeSensors = sensors.filter(s => String(s.pipeline_id) === String(pipeId));
-        if (!pipeSensors.length) return { status: 'Safe', risk: 0, sensorCount: 0 };
+        if (!pipeSensors.length) return { status: 'Safe', risk: 0, sensorCount: 0, quality: 'Good' };
         const risk = Math.max(...pipeSensors.map(s => s.leakScore || 0));
         const status = pipeSensors.some(s => s.status === 'Critical') ? 'Critical' : (pipeSensors.some(s => s.status === 'Warning') ? 'Warning' : 'Safe');
-        return { status, risk, sensorCount: pipeSensors.length };
+
+        // Quality logic
+        const avgTds = pipeSensors.reduce((acc, s) => acc + (s.tds || 0), 0) / pipeSensors.length;
+        const avgTurb = pipeSensors.reduce((acc, s) => acc + (s.turbidity || 0), 0) / pipeSensors.length;
+        let quality = 'Good';
+        if (avgTds > 600 || avgTurb > 5) quality = 'Poor';
+        else if (avgTds > 300 || avgTurb > 2) quality = 'Fair';
+
+        return { status, risk, sensorCount: pipeSensors.length, quality };
     };
 
     const getStatusColor = (status) => {
@@ -231,43 +239,50 @@ const MapView = ({ sensors, pipelines, isAdmin, onCoordinateSelect, drawingMode,
                                     <Polyline
                                         key={pipe.id}
                                         positions={coords}
-                                        color={stats.status === 'Critical' ? '#ef4444' : (isSelected ? '#eab308' : "#3b82f6")}
-                                        weight={stats.status === 'Critical' ? 12 : (isSelected ? 10 : 5)}
-                                        opacity={stats.status === 'Critical' ? 1 : (isSelected ? 1 : (filterPipelineId ? 0.05 : 0.7))}
-                                        dashArray={stats.status === 'Critical' ? "" : (isSelected ? "" : "none")}
+                                        color={isSelected ? '#eab308' : (stats.status === 'Critical' ? '#ef4444' : "#3b82f6")}
+                                        weight={isSelected ? 10 : (stats.status === 'Critical' ? 12 : 6)}
+                                        opacity={isSelected ? 1 : (stats.status === 'Critical' ? 1 : (filterPipelineId ? 0.05 : 0.8))}
                                         eventHandlers={{
                                             click: (e) => {
                                                 if (onFilterChange) onFilterChange(String(pipe.id));
+                                                // Leaflet popup will open automatically because it's a child
                                             }
                                         }}
                                     >
                                         <Popup>
-                                            <div className="p-4 min-w-[200px]">
-                                                <div className="flex justify-between items-start mb-2">
+                                            <div className="p-4 min-w-[240px] glass-card border-none shadow-none bg-white dark:bg-gray-800">
+                                                <div className="flex justify-between items-start mb-4">
                                                     <div>
-                                                        <h5 className="font-black dark:text-gray-800 uppercase tracking-widest text-[12px]">{pipe.name}</h5>
-                                                        <p className="text-[10px] text-gray-500 font-bold">{pipe.start_location} → {pipe.end_location}</p>
+                                                        <h5 className="font-black dark:text-gray-100 uppercase tracking-tighter text-[14px] leading-tight">{pipe.name}</h5>
+                                                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">{pipe.start_location} → {pipe.end_location}</p>
                                                     </div>
-                                                    <span className={`px-2 py-1 rounded text-[9px] font-black uppercase ${stats.status === 'Safe' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                                                        {stats.status}
-                                                    </span>
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-2 mb-4">
-                                                    <div className="bg-gray-50 p-2 rounded-lg">
-                                                        <span className="text-[8px] block text-gray-400 font-black">SENSORS</span>
-                                                        <span className="font-black text-[12px]">{stats.sensorCount}</span>
-                                                    </div>
-                                                    <div className="bg-gray-50 p-2 rounded-lg">
-                                                        <span className="text-[8px] block text-gray-400 font-black">RISK</span>
-                                                        <span className="font-black text-[12px]">{stats.risk}%</span>
+                                                    <div className={`p-2 rounded-xl flex flex-col items-center ${stats.status === 'Safe' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                                                        <Activity size={12} />
+                                                        <span className="text-[8px] font-black uppercase mt-1">{stats.status}</span>
                                                     </div>
                                                 </div>
+
+                                                <div className="grid grid-cols-3 gap-2 mb-4">
+                                                    <div className="bg-gray-50 dark:bg-gray-700/50 p-2 rounded-xl flex flex-col items-center justify-center border border-gray-100 dark:border-gray-700">
+                                                        <span className="text-[8px] block text-gray-400 font-black uppercase mb-1">Sensors</span>
+                                                        <span className="font-black text-[14px] dark:text-white leading-none">{stats.sensorCount}</span>
+                                                    </div>
+                                                    <div className="bg-gray-50 dark:bg-gray-700/50 p-2 rounded-xl flex flex-col items-center justify-center border border-gray-100 dark:border-gray-700">
+                                                        <span className="text-[8px] block text-gray-400 font-black uppercase mb-1">Leak Risk</span>
+                                                        <span className={`font-black text-[14px] leading-none ${stats.risk > 40 ? 'text-red-500' : 'text-emerald-500'}`}>{stats.risk}%</span>
+                                                    </div>
+                                                    <div className="bg-gray-50 dark:bg-gray-700/50 p-2 rounded-xl flex flex-col items-center justify-center border border-gray-100 dark:border-gray-700">
+                                                        <span className="text-[8px] block text-gray-400 font-black uppercase mb-1">Quality</span>
+                                                        <span className={`font-black text-[14px] leading-none ${stats.quality === 'Good' ? 'text-blue-500' : (stats.quality === 'Fair' ? 'text-amber-500' : 'text-red-500')}`}>{stats.quality}</span>
+                                                    </div>
+                                                </div>
+
                                                 {isMainGisView && (
                                                     <button
                                                         onClick={() => navigate(`/pipeline/${pipe.id}`)}
-                                                        className="w-full bg-primary-600 text-white py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center hover:bg-primary-700 transition-colors"
+                                                        className="w-full bg-gray-900 dark:bg-primary-500 text-white py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest flex items-center justify-center hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-gray-900/10 dark:shadow-primary-500/20"
                                                     >
-                                                        <Activity size={12} className="mr-2" /> View Detailed Analytics <ChevronRight size={12} className="ml-1" />
+                                                        <BarChart3 size={14} className="mr-2" /> View Detailed Analysis <ChevronRight size={14} className="ml-1" />
                                                     </button>
                                                 )}
                                             </div>

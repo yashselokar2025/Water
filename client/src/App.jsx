@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import MapView from './components/MapView';
-import SensorSimulation from './components/SensorSimulation';
+import SimulationHub from './components/SimulationHub';
 import Analytics from './components/Analytics';
 import WaterQuality from './components/WaterQualityIntelligence';
 import HealthData from './components/HealthData';
@@ -34,7 +34,6 @@ import OutbreakRisk from './components/OutbreakRisk';
 import PrioritySystem from './components/PrioritySystem';
 import Auth from './components/Auth';
 import PipelineDetail from './components/PipelineDetail';
-import TestingPanel from './components/TestingPanel';
 import useOffline from './hooks/useOffline';
 
 const API_BASE = 'http://localhost:5000/api';
@@ -180,11 +179,10 @@ function App() {
   ];
 
   if (isAdmin) {
-    menuItems.splice(2, 0, { id: 'sensors', path: '/iot-simulation', label: 'IoT Simulation', icon: Settings });
+    menuItems.splice(2, 0, { id: 'simulation-hub', path: '/simulation-hub', label: 'Simulation Hub', icon: Settings });
     menuItems.splice(5, 0, { id: 'leaks', path: '/leaks', label: 'Leak Detection', icon: AlertTriangle });
     menuItems.splice(6, 0, { id: 'risks', path: '/risks', label: 'Outbreak Risk', icon: HeartPulse });
     menuItems.splice(7, 0, { id: 'priority', path: '/priority', label: 'Priority List', icon: AlertCircle });
-    menuItems.splice(8, 0, { id: 'testing', path: '/testing', label: 'Testing Panel', icon: Settings });
   }
 
   return (
@@ -328,7 +326,7 @@ function App() {
             <Routes>
               <Route path="/" element={<Dashboard kpis={kpis} lastUpdated={lastUpdated} />} />
               <Route path="/map" element={<MapView sensors={sensors} pipelines={pipelines} isAdmin={isAdmin} fetchData={fetchData} filterPipelineId={selectedPipelineId} onFilterChange={setSelectedPipelineId} />} />
-              <Route path="/iot-simulation" element={isAdmin ? <SensorSimulation sensors={sensors} fetchData={fetchData} initialFilter={selectedPipelineId} onFilterChange={setSelectedPipelineId} /> : <Dashboard kpis={kpis} />} />
+              <Route path="/simulation-hub" element={isAdmin ? <SimulationHub sensors={sensors} fetchData={fetchData} /> : <Dashboard kpis={kpis} />} />
               <Route path="/analytics" element={<Analytics sensors={sensors} />} />
               <Route path="/water-quality" element={<WaterQuality />} />
               <Route path="/health" element={<HealthData />} />
@@ -336,7 +334,6 @@ function App() {
               <Route path="/leaks" element={isAdmin ? <LeakDetection /> : <Dashboard kpis={kpis} />} />
               <Route path="/risks" element={isAdmin ? <OutbreakRisk /> : <Dashboard kpis={kpis} />} />
               <Route path="/priority" element={isAdmin ? <PrioritySystem /> : <Dashboard kpis={kpis} />} />
-              <Route path="/testing" element={isAdmin ? <TestingPanel /> : <Dashboard kpis={kpis} />} />
               <Route path="/pipeline/:id" element={<PipelineDetail sensors={sensors} pipelines={pipelines} />} />
             </Routes>
           </div>
