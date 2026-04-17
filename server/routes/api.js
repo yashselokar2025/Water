@@ -47,13 +47,20 @@ router.get('/villages', async (req, res) => {
 router.get('/sensors', async (req, res) => {
     try {
         const rows = await db.query(`
-            SELECT s.*, p.name as pipeline_name, r.pressure, r.flow, r.ph, r.turbidity, r.tds 
+            SELECT s.*, p.name as pipeline_name, 
+                   COALESCE(o.pressure, r.pressure) as pressure, 
+                   COALESCE(o.flow, r.flow) as flow, 
+                   COALESCE(o.ph, r.ph) as ph, 
+                   COALESCE(o.turbidity, r.turbidity) as turbidity, 
+                   COALESCE(o.tds, r.tds) as tds,
+                   o.is_active as isTesting
             FROM sensors s
             LEFT JOIN pipelines p ON s.pipeline_id = p.id
             LEFT JOIN (
                 SELECT * FROM sensor_readings 
                 WHERE id IN (SELECT MAX(id) FROM sensor_readings GROUP BY sensor_id)
             ) r ON s.id = r.sensor_id
+            LEFT JOIN sensor_overrides o ON s.id = o.sensor_id AND o.is_active = 1
         `);
 
         // Enriched loop using 6-layer AI logic

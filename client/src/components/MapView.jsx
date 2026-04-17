@@ -86,6 +86,7 @@ const MapView = ({ sensors, pipelines, isAdmin, onCoordinateSelect, drawingMode,
     };
 
     const focusOn = (item) => {
+        if (!item) return;
         let lat = 0, lng = 0;
         if (item.type === 'sensor' || item.type === 'location') {
             lat = parseFloat(item.lat);
@@ -94,7 +95,7 @@ const MapView = ({ sensors, pipelines, isAdmin, onCoordinateSelect, drawingMode,
             const pipe = pipelines.find(p => String(p.id) === String(item.id));
             if (pipe?.coordinates) {
                 try {
-                    const coords = JSON.parse(pipe.coordinates);
+                    const coords = typeof pipe.coordinates === 'string' ? JSON.parse(pipe.coordinates) : pipe.coordinates;
                     if (coords.length > 0) {
                         lat = coords.reduce((acc, c) => acc + c[0], 0) / coords.length;
                         lng = coords.reduce((acc, c) => acc + c[1], 0) / coords.length;
@@ -110,6 +111,12 @@ const MapView = ({ sensors, pipelines, isAdmin, onCoordinateSelect, drawingMode,
         }
         setShowResults(false);
         setSearchQuery(item.name.split(',')[0]);
+    };
+
+    const triggerSearch = () => {
+        if (searchResults.length > 0) {
+            focusOn(searchResults[0]);
+        }
     };
 
     const getPipelineStats = (pipeId) => {
@@ -134,12 +141,16 @@ const MapView = ({ sensors, pipelines, isAdmin, onCoordinateSelect, drawingMode,
             {/* Floating Search Hub - Positioned Top-Left but offset from map controls */}
             <div className="absolute top-6 left-16 z-[1000] w-full max-w-sm hidden md:block">
                 <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 rounded-2xl shadow-2xl flex items-center p-2 group transition-all focus-within:ring-4 focus-within:ring-primary-500/10">
-                    <div className="p-3 bg-primary-500 text-white rounded-xl shadow-lg shadow-primary-500/20 mr-2">
+                    <button
+                        onClick={triggerSearch}
+                        className="p-3 bg-primary-500 text-white rounded-xl shadow-lg shadow-primary-500/20 mr-2 hover:bg-primary-600 transition-colors active:scale-95"
+                    >
                         <Search size={20} />
-                    </div>
+                    </button>
                     <input
                         value={searchQuery}
                         onChange={handleSearch}
+                        onKeyDown={(e) => e.key === 'Enter' && triggerSearch()}
                         placeholder="Search sensor, pipeline, location..."
                         className="flex-1 bg-transparent border-none py-3 px-2 text-sm font-black dark:text-white outline-none placeholder:text-gray-400"
                     />
@@ -377,6 +388,39 @@ const MapView = ({ sensors, pipelines, isAdmin, onCoordinateSelect, drawingMode,
                             </React.Fragment>
                         );
                     })}
+
+                    {/* Active Drawing: Current Pipeline Path preview */}
+                    {drawingMode === 'pipeline' && tempPath && tempPath.length > 0 && (
+                        <>
+                            <Polyline
+                                positions={tempPath}
+                                color="#ef4444"
+                                weight={4}
+                                dashArray="10, 10"
+                                opacity={0.6}
+                            />
+                            {tempPath.map((pos, idx) => (
+                                <CircleMarker
+                                    key={`temp-node-${idx}`}
+                                    center={pos}
+                                    radius={4}
+                                    pathOptions={{ color: '#ef4444', fillOpacity: 1 }}
+                                />
+                            ))}
+                        </>
+                    )}
+
+                    {/* Active Selection: Current Sensor Placement preview */}
+                    {selectedCoord && (
+                        <Marker position={selectedCoord}>
+                            <Popup>
+                                <div className="p-2">
+                                    <p className="font-black text-[10px] uppercase tracking-widest text-primary-500">Proposed Node Position</p>
+                                    <p className="text-[9px] text-gray-400 font-bold">{selectedCoord[0]}, {selectedCoord[1]}</p>
+                                </div>
+                            </Popup>
+                        </Marker>
+                    )}
                 </MapContainer>
             </div>
         </div>

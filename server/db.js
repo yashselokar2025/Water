@@ -110,6 +110,18 @@ const initDB = async () => {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id)
         );
+
+        CREATE TABLE IF NOT EXISTS sensor_overrides (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sensor_id INTEGER UNIQUE,
+            pressure REAL,
+            flow REAL,
+            ph REAL,
+            turbidity REAL,
+            tds REAL,
+            is_active INTEGER DEFAULT 0,
+            FOREIGN KEY (sensor_id) REFERENCES sensors(id)
+        );
     `);
 
     // --- MIGRATIONS ---

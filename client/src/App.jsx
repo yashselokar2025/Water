@@ -34,6 +34,7 @@ import OutbreakRisk from './components/OutbreakRisk';
 import PrioritySystem from './components/PrioritySystem';
 import Auth from './components/Auth';
 import PipelineDetail from './components/PipelineDetail';
+import TestingPanel from './components/TestingPanel';
 import useOffline from './hooks/useOffline';
 
 const API_BASE = 'http://localhost:5000/api';
@@ -183,6 +184,7 @@ function App() {
     menuItems.splice(5, 0, { id: 'leaks', path: '/leaks', label: 'Leak Detection', icon: AlertTriangle });
     menuItems.splice(6, 0, { id: 'risks', path: '/risks', label: 'Outbreak Risk', icon: HeartPulse });
     menuItems.splice(7, 0, { id: 'priority', path: '/priority', label: 'Priority List', icon: AlertCircle });
+    menuItems.splice(8, 0, { id: 'testing', path: '/testing', label: 'Testing Panel', icon: Settings });
   }
 
   return (
@@ -334,6 +336,7 @@ function App() {
               <Route path="/leaks" element={isAdmin ? <LeakDetection /> : <Dashboard kpis={kpis} />} />
               <Route path="/risks" element={isAdmin ? <OutbreakRisk /> : <Dashboard kpis={kpis} />} />
               <Route path="/priority" element={isAdmin ? <PrioritySystem /> : <Dashboard kpis={kpis} />} />
+              <Route path="/testing" element={isAdmin ? <TestingPanel /> : <Dashboard kpis={kpis} />} />
               <Route path="/pipeline/:id" element={<PipelineDetail sensors={sensors} pipelines={pipelines} />} />
             </Routes>
           </div>

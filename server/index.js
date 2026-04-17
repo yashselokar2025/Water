@@ -16,8 +16,10 @@ app.get('/', (req, res) => {
 // Import and use routes
 const apiRoutes = require('./routes/api');
 const authRoutes = require('./routes/auth');
+const testingRoutes = require('./routes/testing');
 app.use('/api', apiRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/testing', testingRoutes);
 
 // Simulation controls
 app.post('/api/simulate/leak', (req, res) => {
