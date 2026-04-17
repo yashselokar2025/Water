@@ -1,4 +1,5 @@
 const db = require('../db');
+const waterQuality = require('./waterQualityService');
 
 /**
  * AI Engine Service - 6 Layer Decision Support
@@ -23,21 +24,24 @@ const aiEngine = {
             }
         }
 
-        // B. Threshold-Based Detection (Water Quality)
-        if (sensor.pH < 6.5 || sensor.pH > 8.5) {
+        // B. Threshold-Based Detection (Enhanced Health Logic)
+        const health = waterQuality.classify(sensor.ph, sensor.tds, sensor.turbidity);
+
+        if (health.isToxic) {
+            leakScore += 60;
+            isAnomaly = true;
+        } else if (!health.isDrinkable) {
             leakScore += 20;
-            insights.push(`pH Level (${sensor.pH}) outside safe drinking water standards`);
-        }
-        if (sensor.turbidity > 5.0) {
-            leakScore += 30;
-            insights.push(`High Turbidity (${sensor.turbidity} NTU) detected - contamination risk`);
-        }
-        if (sensor.tds > 500) {
-            leakScore += 15;
-            insights.push(`High TDS (${sensor.tds} mg/L) detected`);
         }
 
-        return { isAnomaly, leakScore, detectionInsights: insights };
+        insights.push(...health.explanation.split('. '));
+
+        return {
+            isAnomaly,
+            leakScore,
+            detectionInsights: insights,
+            health: health // Pass through the clinical data
+        };
     },
 
     // --- LAYER 2: PREDICTION (Trend Analysis) ---

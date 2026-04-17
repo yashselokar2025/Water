@@ -26,7 +26,7 @@ import Dashboard from './components/Dashboard';
 import MapView from './components/MapView';
 import SensorSimulation from './components/SensorSimulation';
 import Analytics from './components/Analytics';
-import WaterQuality from './components/WaterQuality';
+import WaterQuality from './components/WaterQualityIntelligence';
 import HealthData from './components/HealthData';
 import Complaints from './components/Complaints';
 import LeakDetection from './components/LeakDetection';
