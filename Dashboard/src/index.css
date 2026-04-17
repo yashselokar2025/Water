@@ -40,6 +40,23 @@
   --glow-green: 0 0 20px rgba(16,185,129,0.3);
 }
 
+/* Light-mode overrides — applied when .dark class is absent */
+body:not(.dark) {
+  --bg-primary:    #f0f4f8;
+  --bg-secondary:  #e8eef5;
+  --bg-card:       #ffffff;
+  --bg-card-hover: #f8fafc;
+  --border-color:  rgba(0,0,0,0.08);
+  --text-primary:   #0f172a;
+  --text-secondary: #475569;
+  --text-muted:     #94a3b8;
+  --glass-bg:     rgba(255,255,255,0.7);
+  --glass-border: rgba(0,0,0,0.08);
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.1);
+  --shadow-md:  0 4px 16px rgba(0,0,0,0.12);
+  --shadow-lg:  0 8px 32px rgba(0,0,0,0.18);
+}
+
 /* ================================
    RESET & BASE
    ================================ */
@@ -304,12 +321,13 @@ img {
   display: flex; align-items: center; justify-content: center;
 }
 
-input[type="text"],
-input[type="email"],
-input[type="password"],
-input[type="number"],
-textarea,
-select {
+/* Dark-mode inputs (only apply dark styles when inside .dark) */
+.dark input[type="text"],
+.dark input[type="email"],
+.dark input[type="password"],
+.dark input[type="number"],
+.dark textarea,
+.dark select {
   background: rgba(255,255,255,0.05) !important;
   border: 1px solid rgba(255,255,255,0.12) !important;
   color: var(--text-primary) !important;

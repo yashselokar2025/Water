@@ -51,8 +51,19 @@ const AppShell = () => {
     if (currentThemeMode)  setCurrentMode(currentThemeMode);
   }, []);
 
+  const isDark = currentMode === 'Dark';
+
   return (
-    <div style={{ background: '#0a0f1e', minHeight: '100vh', color: '#f1f5f9', fontFamily: 'Inter, sans-serif' }}>
+    <div
+      className={isDark ? 'dark' : ''}
+      style={{
+        background: isDark ? '#0a0f1e' : '#f0f4f8',
+        minHeight: '100vh',
+        color: isDark ? '#f1f5f9' : '#0f172a',
+        fontFamily: 'Inter, sans-serif',
+        transition: 'background 0.3s, color 0.3s',
+      }}
+    >
       {/* Global floating alert banners */}
       <AlertBanner alerts={alerts.filter((a) => !a.resolved)} onDismiss={dismissAlert} />
 

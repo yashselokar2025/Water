@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import { AiOutlineMenu } from 'react-icons/ai';
 import { MdKeyboardArrowDown } from 'react-icons/md';
 import { RiNotification3Line } from 'react-icons/ri';
+import { MdDarkMode, MdLightMode } from 'react-icons/md';
 
 import Cart from './Cart';
 import Chat from './Chat';
@@ -40,7 +41,16 @@ const Navbar = () => {
     isClicked,
     setScreenSize,
     screenSize,
+    currentMode,
+    setCurrentMode,
   } = useStateContext();
+
+  const isDark = currentMode === 'Dark';
+  const toggleMode = () => {
+    const next = isDark ? 'Light' : 'Dark';
+    setCurrentMode(next);
+    localStorage.setItem('themeMode', next);
+  };
 
   useEffect(() => {
     const handleResize = () => setScreenSize(window.innerWidth);
@@ -74,6 +84,31 @@ const Navbar = () => {
 
       {/* Right Side */}
       <div className="flex items-center gap-2">
+        {/* Theme Toggle */}
+        <TooltipComponent content={isDark ? 'Light Mode' : 'Dark Mode'} position="BottomCenter">
+          <button
+            type="button"
+            onClick={toggleMode}
+            aria-label="Toggle theme"
+            style={{
+              background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+              border: 'none',
+              borderRadius: '50%',
+              width: 36,
+              height: 36,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: currentColor,
+              fontSize: 18,
+              transition: 'background 0.2s',
+            }}
+          >
+            {isDark ? <MdLightMode /> : <MdDarkMode />}
+          </button>
+        </TooltipComponent>
+
         <LanguageSwitcher />
 
         {/* ✅ Notification Icon (Water Alerts) */}

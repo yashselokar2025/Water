@@ -1,0 +1,439 @@
+/* ================================================================
+   Dashboard.css  –  Scoped styles for Dashboard.jsx
+   Theme tokens resolved from .dark / .light on db-root
+   ================================================================ */
+
+/* ── CSS Variables per theme ────────────────────────────────── */
+.db-root.dark {
+  --db-bg:          #0f172a;
+  --db-surface:     #1e293b;
+  --db-surface-2:   #293548;
+  --db-border:      rgba(255,255,255,0.08);
+  --db-text-1:      #f1f5f9;
+  --db-text-2:      #94a3b8;
+  --db-text-3:      #475569;
+  --db-shadow:      0 4px 24px rgba(0,0,0,0.5);
+  --db-shadow-sm:   0 2px 8px  rgba(0,0,0,0.4);
+  --db-input-bg:    rgba(255,255,255,0.05);
+  --db-input-border:rgba(255,255,255,0.12);
+  --db-hover:       rgba(255,255,255,0.04);
+  --db-table-row:   rgba(255,255,255,0.025);
+}
+
+.db-root.light {
+  --db-bg:          #f0f4f8;
+  --db-surface:     #ffffff;
+  --db-surface-2:   #f8fafc;
+  --db-border:      rgba(0,0,0,0.07);
+  --db-text-1:      #0f172a;
+  --db-text-2:      #475569;
+  --db-text-3:      #94a3b8;
+  --db-shadow:      0 4px 24px rgba(0,0,0,0.08);
+  --db-shadow-sm:   0 2px 8px  rgba(0,0,0,0.06);
+  --db-input-bg:    #f8fafc;
+  --db-input-border:rgba(0,0,0,0.12);
+  --db-hover:       rgba(0,0,0,0.03);
+  --db-table-row:   rgba(0,0,0,0.025);
+}
+
+/* ── Root container ─────────────────────────────────────────── */
+.db-root {
+  background: var(--db-bg);
+  min-height: 100vh;
+  padding: 28px 32px 48px;
+  font-family: 'Inter', 'Open Sans', sans-serif;
+  color: var(--db-text-1);
+  transition: background 0.3s, color 0.3s;
+}
+
+@media (max-width: 768px) {
+  .db-root { padding: 16px 14px 40px; }
+}
+
+/* ── Base card ──────────────────────────────────────────────── */
+.db-card {
+  background: var(--db-surface);
+  border: 1px solid var(--db-border);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: var(--db-shadow-sm);
+  transition: box-shadow 0.25s;
+}
+.db-card:hover { box-shadow: var(--db-shadow); }
+
+/* ── Section title ──────────────────────────────────────────── */
+.db-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--db-text-1);
+  margin-bottom: 20px;
+  letter-spacing: -0.01em;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   HEADER
+──────────────────────────────────────────────────────────────── */
+.db-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+}
+
+.db-header-title h1 {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--db-text-1);
+  margin: 0 0 6px;
+  letter-spacing: -0.03em;
+}
+
+.db-header-title p {
+  font-size: 14px;
+  color: var(--db-text-2);
+  margin: 0;
+}
+
+/* ── Action buttons row ─────────────────────────────────────── */
+.db-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.db-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  color: #ffffff;
+  transition: filter 0.2s, transform 0.15s, box-shadow 0.2s;
+  white-space: nowrap;
+  line-height: 1;
+}
+.db-btn:hover  { filter: brightness(1.12); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,0.25); }
+.db-btn:active { transform: translateY(0); }
+
+.db-btn-outline {
+  background: transparent !important;
+  border: 1.5px solid;
+  font-weight: 600;
+}
+.db-btn-outline:hover { background: rgba(0,0,0,0.04) !important; filter: none; }
+
+.db-root.dark .db-btn-outline:hover { background: rgba(255,255,255,0.06) !important; }
+
+.db-btn-green {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   FILTER PANEL
+──────────────────────────────────────────────────────────────── */
+.db-filter-panel {
+  margin-bottom: 28px;
+}
+.db-filter-panel h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--db-text-1);
+  margin-bottom: 16px;
+}
+.db-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+.db-filter-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--db-text-2);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.db-filter-field select {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--db-input-border);
+  background: var(--db-input-bg);
+  color: var(--db-text-1);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+.db-filter-field select:focus {
+  border-color: #00d4ff;
+  box-shadow: 0 0 0 3px rgba(0,212,255,0.15);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   METRIC CARDS GRID  (5 cards, responsive)
+──────────────────────────────────────────────────────────────── */
+.db-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+@media (max-width: 1200px) {
+  .db-metrics-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 768px) {
+  .db-metrics-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .db-metrics-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Individual metric card ─────────────────────────────────── */
+.db-metric-card {
+  background: var(--db-surface);
+  border: 1px solid var(--db-border);
+  border-radius: 16px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: var(--db-shadow-sm);
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: default;
+}
+.db-metric-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--db-shadow);
+}
+
+.db-metric-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.db-metric-body {
+  flex: 1;
+}
+
+.db-metric-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--db-text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+
+.db-metric-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--db-text-1);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+/* Accent bar at bottom */
+.db-metric-accent-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 0 0 16px 16px;
+  opacity: 0.7;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   SPARKLINE BANNER
+──────────────────────────────────────────────────────────────── */
+.db-sparkline-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  border-radius: 16px;
+  padding: 24px 28px;
+  margin-bottom: 20px;
+  color: #ffffff;
+}
+
+.db-sparkline-info {}
+.db-sparkline-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.db-sparkline-sub {
+  font-size: 13px;
+  opacity: 0.75;
+}
+.db-sparkline-value {}
+.db-sparkline-num {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.db-sparkline-chart {
+  flex: 1;
+  min-width: 180px;
+  max-width: 380px;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   LIVE NOTICE
+──────────────────────────────────────────────────────────────── */
+.db-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 20px;
+  border-left: 4px solid #10b981;
+}
+.db-notice.dark  { background: rgba(16,185,129,0.1); color: #6ee7b7; }
+.db-notice.light { background: #ecfdf5;             color: #065f46; }
+
+.db-notice-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  animation: live-pulse 1.5s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(1.3); }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   POWER BI EMBED
+──────────────────────────────────────────────────────────────── */
+.db-powerbi-card {
+  margin-bottom: 28px;
+}
+.db-powerbi-frame iframe {
+  width: 100%;
+  height: 520px;
+  border-radius: 10px;
+  border: none;
+  display: block;
+}
+@media (max-width: 768px) {
+  .db-powerbi-frame iframe { height: 320px; }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   CHARTS GRID  (2 columns, stacks on mobile)
+──────────────────────────────────────────────────────────────── */
+.db-charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+@media (max-width: 900px) {
+  .db-charts-grid { grid-template-columns: 1fr; }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   TABLE
+──────────────────────────────────────────────────────────────── */
+.db-table-wrapper {
+  overflow-x: auto;
+  margin-bottom: 28px;
+}
+.db-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.db-table thead tr {
+  border-bottom: 2px solid var(--db-border);
+}
+.db-table th {
+  text-align: left;
+  padding: 12px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--db-text-2);
+  white-space: nowrap;
+}
+.db-table td {
+  padding: 13px 16px;
+  color: var(--db-text-1);
+  border-bottom: 1px solid var(--db-border);
+}
+.db-table tbody tr:hover td {
+  background: var(--db-hover);
+}
+.db-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.db-table-name {
+  font-weight: 600;
+}
+
+/* ── Badge system ───────────────────────────────────────────── */
+.db-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.badge-high   { background: rgba(239,68,68,0.15);   color: #ef4444; border: 1px solid rgba(239,68,68,0.3);   }
+.badge-medium { background: rgba(245,158,11,0.15);  color: #d97706; border: 1px solid rgba(245,158,11,0.3);  }
+.badge-low    { background: rgba(16,185,129,0.15);  color: #10b981; border: 1px solid rgba(16,185,129,0.3);  }
+.badge-poor   { background: rgba(239,68,68,0.15);   color: #ef4444; border: 1px solid rgba(239,68,68,0.3);   }
+.badge-fair   { background: rgba(245,158,11,0.12);  color: #d97706; border: 1px solid rgba(245,158,11,0.25); }
+.badge-good   { background: rgba(16,185,129,0.15);  color: #10b981; border: 1px solid rgba(16,185,129,0.3);  }
+
+/* In light mode lighten the badge backgrounds slightly */
+.db-root.light .badge-high   { background: #fee2e2; color: #b91c1c; }
+.db-root.light .badge-medium { background: #fef3c7; color: #92400e; }
+.db-root.light .badge-low    { background: #d1fae5; color: #065f46; }
+.db-root.light .badge-poor   { background: #fee2e2; color: #b91c1c; }
+.db-root.light .badge-fair   { background: #fef3c7; color: #92400e; }
+.db-root.light .badge-good   { background: #d1fae5; color: #065f46; }
+
+/* ──────────────────────────────────────────────────────────────
+   FOOTER
+──────────────────────────────────────────────────────────────── */
+.db-footer {
+  text-align: center;
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid var(--db-border);
+  color: var(--db-text-3);
+  font-size: 12px;
+  line-height: 2;
+}
