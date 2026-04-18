@@ -6,10 +6,10 @@ const aiEngine = require('../services/aiEngine');
 // --- Dashboard KPIs ---
 router.get('/dashboard/kpis', async (req, res) => {
     try {
-        const sensors = await db.query('SELECT COUNT(*) as count FROM sensors');
-        const villages = await db.query('SELECT COUNT(*) as count FROM villages WHERE water_quality = "Poor"');
-        const complaints = await db.query('SELECT COUNT(*) as count FROM complaints WHERE status = "Pending"');
-        const alerts = await db.query('SELECT COUNT(*) as count FROM alerts WHERE is_resolved = 0');
+        const sensors = await db.query(`SELECT COUNT(*) as count FROM sensors`);
+        const villages = await db.query(`SELECT COUNT(*) as count FROM villages WHERE water_quality = 'Poor'`);
+        const complaints = await db.query(`SELECT COUNT(*) as count FROM complaints WHERE status = 'Pending'`);
+        const alerts = await db.query(`SELECT COUNT(*) as count FROM alerts WHERE is_resolved = false`);
 
         res.json({
             activeSensors: sensors[0].count,
@@ -273,7 +273,7 @@ router.get('/ai/outbreak-risk', async (req, res) => {
             // 1. Current Window (last 10 minutes)
             const currentRes = await db.query(
                 `SELECT COUNT(*) as count FROM complaints 
-                 WHERE pipeline_id = ? AND created_at >= datetime('now', '-10 minutes')`,
+                 WHERE pipeline_id = ? AND created_at >= NOW() - INTERVAL '10 minutes'`,
                 [pipeline.id]
             );
             const currentCount = currentRes[0]?.count || 0;
@@ -281,8 +281,8 @@ router.get('/ai/outbreak-risk', async (req, res) => {
             // 2. Previous Window (10-20 minutes ago)
             const previousRes = await db.query(
                 `SELECT COUNT(*) as count FROM complaints 
-                 WHERE pipeline_id = ? AND created_at >= datetime('now', '-20 minutes') 
-                 AND created_at < datetime('now', '-10 minutes')`,
+                 WHERE pipeline_id = ? AND created_at >= NOW() - INTERVAL '20 minutes' 
+                 AND created_at < NOW() - INTERVAL '10 minutes'`,
                 [pipeline.id]
             );
             const previousCount = previousRes[0]?.count || 0;
@@ -290,7 +290,7 @@ router.get('/ai/outbreak-risk', async (req, res) => {
             // 3. Top Issue Type
             const topIssueRes = await db.query(
                 `SELECT type, COUNT(*) as count FROM complaints 
-                 WHERE pipeline_id = ? AND created_at >= datetime('now', '-10 minutes')
+                 WHERE pipeline_id = ? AND created_at >= NOW() - INTERVAL '10 minutes'
                  GROUP BY type ORDER BY count DESC LIMIT 1`,
                 [pipeline.id]
             );
@@ -478,19 +478,19 @@ router.delete('/pipelines/:id', async (req, res) => {
     try {
         const database = db.getDB();
         // 1. Delete Overrides for all sensors in this pipeline
-        await database.run('DELETE FROM sensor_overrides WHERE sensor_id IN (SELECT id FROM sensors WHERE pipeline_id = ?)', [id]);
+        await db.execute('DELETE FROM sensor_overrides WHERE sensor_id IN (SELECT id FROM sensors WHERE pipeline_id = ?)', [id]);
 
         // 2. Delete Readings for all sensors in this pipeline
-        await database.run('DELETE FROM sensor_readings WHERE sensor_id IN (SELECT id FROM sensors WHERE pipeline_id = ?)', [id]);
+        await db.execute('DELETE FROM sensor_readings WHERE sensor_id IN (SELECT id FROM sensors WHERE pipeline_id = ?)', [id]);
 
         // 3. Delete Alerts for all sensors in this pipeline
-        await database.run('DELETE FROM alerts WHERE sensor_id IN (SELECT id FROM sensors WHERE pipeline_id = ?)', [id]);
+        await db.execute('DELETE FROM alerts WHERE sensor_id IN (SELECT id FROM sensors WHERE pipeline_id = ?)', [id]);
 
         // 4. Delete Sensors
-        await database.run('DELETE FROM sensors WHERE pipeline_id = ?', [id]);
+        await db.execute('DELETE FROM sensors WHERE pipeline_id = ?', [id]);
 
         // 5. Delete Pipeline
-        await database.run('DELETE FROM pipelines WHERE id = ?', [id]);
+        await db.execute('DELETE FROM pipelines WHERE id = ?', [id]);
 
         res.json({ success: true, message: 'Infrastructure segment and all associated assets decommissioned' });
     } catch (error) {

@@ -70,7 +70,7 @@ const Dashboard = ({ kpis, lastUpdated, sensors: propsSensors, pipelines: propsP
     useEffect(() => {
         const fetchVillages = async () => {
             try {
-                const villageRes = await axios.get('http://localhost:5000/api/villages');
+                const villageRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/villages`);
                 setVillages(villageRes.data);
             } catch (err) { console.error(err); }
         };

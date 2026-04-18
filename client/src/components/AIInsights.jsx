@@ -11,8 +11,8 @@ const AIInsights = () => {
         const fetchData = async () => {
             try {
                 const [pRes, iRes] = await Promise.all([
-                    axios.get('http://localhost:5000/api/ai/priority-maintenance'),
-                    axios.get('http://localhost:5000/api/ai/insights')
+                    axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/ai/priority-maintenance`),
+                    axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/ai/insights`)
                 ]);
                 setPriorityList(pRes.data);
                 setInsights(iRes.data);

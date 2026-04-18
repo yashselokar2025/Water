@@ -60,7 +60,7 @@ const MapView = ({ sensors, pipelines, isAdmin, onCoordinateSelect, drawingMode,
         return sensors.filter(s => String(s.pipeline_id) === String(filterPipelineId));
     }, [sensors, filterPipelineId]);
 
-    const API_BASE = 'http://localhost:5000/api';
+    const API_BASE = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api`;
 
     const [isSearching, setIsSearching] = useState(false);
 

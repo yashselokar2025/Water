@@ -8,13 +8,13 @@ const HealthData = () => {
     const [submitted, setSubmitted] = useState(false);
 
     useEffect(() => {
-        axios.get('http://localhost:5000/api/villages').then(res => setVillages(res.data));
+        axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/villages`).then(res => setVillages(res.data));
     }, []);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            await axios.post('http://localhost:5000/api/health', formData);
+            await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/health`, formData);
             setSubmitted(true);
             setTimeout(() => setSubmitted(false), 3000);
             setFormData({ name: '', contact: '', symptoms: '', village_id: '' });

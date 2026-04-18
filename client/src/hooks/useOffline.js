@@ -44,7 +44,7 @@ const useOffline = (fetchDataCallback) => {
             const remainingComplaints = [];
             for (const complaint of complaints) {
                 try {
-                    await axios.post('http://localhost:5000/api/complaint/add', complaint);
+                    await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/complaint/add`, complaint);
                 } catch (e) {
                     console.error("Individual complaint sync failed:", e);
                     remainingComplaints.push(complaint);

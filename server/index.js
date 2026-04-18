@@ -11,7 +11,7 @@ const db = require('./db');
 const simulation = require('./simulation');
 
 app.get('/', (req, res) => {
-    res.send('SmartWater AI Backend (SQLite) is running');
+    res.send('SmartWater AI Backend (Postgres) is running');
 });
 
 // Import and use routes
@@ -26,9 +26,9 @@ app.use('/api/testing', testingRoutes);
 app.post('/api/simulate/leak', async (req, res) => {
     try {
         const database = db.getDB();
-        const sensors = await database.all('SELECT id FROM sensors');
+        const sensors = await db.query('SELECT id FROM sensors');
         for (const s of sensors) {
-            await database.run(`
+            await db.execute(`
                 INSERT INTO sensor_overrides (sensor_id, pressure, flow, is_active)
                 VALUES (?, 1.0, 35.0, 1)
                 ON CONFLICT(sensor_id) DO UPDATE SET pressure=1.0, flow=35.0, is_active=1
@@ -41,9 +41,9 @@ app.post('/api/simulate/leak', async (req, res) => {
 app.post('/api/simulate/contamination', async (req, res) => {
     try {
         const database = db.getDB();
-        const sensors = await database.all('SELECT id FROM sensors');
+        const sensors = await db.query('SELECT id FROM sensors');
         for (const s of sensors) {
-            await database.run(`
+            await db.execute(`
                 INSERT INTO sensor_overrides (sensor_id, ph, turbidity, tds, is_active)
                 VALUES (?, 9.8, 35.0, 1250, 1)
                 ON CONFLICT(sensor_id) DO UPDATE SET ph=9.8, turbidity=35.0, tds=1250, is_active=1
@@ -55,7 +55,7 @@ app.post('/api/simulate/contamination', async (req, res) => {
 
 app.post('/api/simulate/reset', async (req, res) => {
     try {
-        await db.getDB().run('DELETE FROM sensor_overrides');
+        await db.execute('DELETE FROM sensor_overrides');
         res.json({ message: 'Simulation reset completed' });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });

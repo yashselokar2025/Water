@@ -48,7 +48,7 @@ const SensorSimulation = ({ sensors, fetchData, initialFilter, onFilterChange })
     }, []);
 
     const fetchPipelines = async () => {
-        const res = await axios.get('http://localhost:5000/api/pipelines');
+        const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/pipelines`);
         setPipelines(res.data);
     };
 
@@ -65,14 +65,14 @@ const SensorSimulation = ({ sensors, fetchData, initialFilter, onFilterChange })
 
     const triggerSimulation = async (type) => {
         try {
-            await axios.post(`http://localhost:5000/api/simulate/${type}`);
+            await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/simulate/${type}`);
             fetchData();
         } catch (err) { console.error(err); }
     };
 
     const resetSystem = async () => {
         try {
-            await axios.post('http://localhost:5000/api/simulate/reset');
+            await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/simulate/reset`);
             fetchData();
         } catch (err) { console.error(err); }
     };
@@ -116,12 +116,12 @@ const SensorSimulation = ({ sensors, fetchData, initialFilter, onFilterChange })
     const handleAddPipeline = async (e) => {
         e.preventDefault();
         try {
-            const res = await axios.post('http://localhost:5000/api/pipelines', newPipeline);
+            const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/pipelines`, newPipeline);
             setNewPipeline({ name: '', start_location: '', end_location: '', coordinates: [] });
             setDrawingMode(null);
             await fetchPipelines();
             // Try to filter to the new pipeline automatically
-            const allPipes = await axios.get('http://localhost:5000/api/pipelines');
+            const allPipes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/pipelines`);
             const created = allPipes.data.find(p => p.name === newPipeline.name);
             if (created) handleFilterChange(String(created.id));
         } catch (err) { console.error(err); }
@@ -130,7 +130,7 @@ const SensorSimulation = ({ sensors, fetchData, initialFilter, onFilterChange })
     const handleAddSensor = async (e) => {
         e.preventDefault();
         try {
-            await axios.post('http://localhost:5000/api/sensors', newSensor);
+            await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/sensors`, newSensor);
             setNewSensor({ name: '', location: '', lat: '', lng: '', pipeline_id: '' });
             setDrawingMode(null);
             fetchData();

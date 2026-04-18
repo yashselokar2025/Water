@@ -31,7 +31,7 @@ const Auth = ({ onLogin }) => {
 
     const fetchPipelines = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/pipelines');
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/pipelines`);
             setPipelines(res.data);
         } catch (err) { console.error(err); }
     };
@@ -53,7 +53,7 @@ const Auth = ({ onLogin }) => {
                     setError('Phone number is required for emergency alerts.');
                     return;
                 }
-                await axios.post('http://localhost:5000/api/auth/register', {
+                await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/register`, {
                     username, password, role, fullName, email, phone, pipelineId
                 });
                 setSuccess('Registration successful! Please login.');
@@ -61,7 +61,7 @@ const Auth = ({ onLogin }) => {
                 setPassword('');
                 generateCaptcha();
             } else {
-                const res = await axios.post('http://localhost:5000/api/auth/login', {
+                const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/login`, {
                     username,
                     password,
                     captchaAnswer: captchaAns,

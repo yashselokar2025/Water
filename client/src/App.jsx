@@ -38,7 +38,7 @@ import Profile from './components/Profile';
 import { detectSensorAnomaly, generateAIInsight, mergeInsightQueue } from './utils/aiEngine';
 import { useLanguage } from './context/LanguageContext';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api`;
 
 function App() {
   const { language, toggleLanguage, t } = useLanguage();

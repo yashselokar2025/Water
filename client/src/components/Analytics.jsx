@@ -49,13 +49,13 @@ const Analytics = ({ sensors: propsSensors, pipelines = [], selectedPipelineId, 
     const fetchData = async () => {
         try {
             if (selectedSensor === 'aggregate' && selectedPipelineId) {
-                const res = await axios.get(`http://localhost:5000/api/analytics/pipeline/${selectedPipelineId}`);
+                const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/analytics/pipeline/${selectedPipelineId}`);
                 setData([...res.data]);
                 setAiInsights(null); // No specific AI predict for pipeline yet
             } else if (selectedSensor !== 'aggregate') {
                 const [histRes, predRes] = await Promise.all([
-                    axios.get(`http://localhost:5000/api/analytics/${selectedSensor}`),
-                    axios.get(`http://localhost:5000/api/ai/predict/${selectedSensor}`).catch(() => ({ data: null }))
+                    axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/analytics/${selectedSensor}`),
+                    axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/ai/predict/${selectedSensor}`).catch(() => ({ data: null }))
                 ]);
                 setData([...histRes.data]);
                 setAiInsights(predRes.data);

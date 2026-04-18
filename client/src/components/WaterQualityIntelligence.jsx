@@ -488,7 +488,7 @@ const WaterQualityIntelligence = ({ liveSensors: propsSensors, pipelines = [], s
     const fetchLiveData = async () => {
         if (propsSensors) { setLoading(false); return; }
         try {
-            const res = await axios.get('http://localhost:5000/api/sensors');
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/sensors`);
             setInternalSensors(() => [...res.data]);
             setLoading(false);
         } catch (err) {

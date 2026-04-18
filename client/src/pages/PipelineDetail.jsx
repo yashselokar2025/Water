@@ -44,7 +44,7 @@ const PipelineDetail = ({ sensors, pipelines }) => {
     const fetchHistory = async () => {
         try {
             // Fetch for the first sensor just as a sample for trends
-            const res = await axios.get(`http://localhost:5000/api/analytics/${pipelineSensors[0].id}`);
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/analytics/${pipelineSensors[0].id}`);
             setHistory(res.data);
         } catch (err) { console.error(err); }
     };

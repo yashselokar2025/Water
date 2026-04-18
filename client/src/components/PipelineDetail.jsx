@@ -39,14 +39,14 @@ const PipelineDetail = () => {
 
     const fetchDetail = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/pipelines');
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/pipelines`);
             const pipe = res.data.find(p => String(p.id) === String(id));
             setPipeline(pipe);
 
-            const sensorRes = await axios.get('http://localhost:5000/api/sensors');
+            const sensorRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/sensors`);
             setSensors(sensorRes.data.filter(s => String(s.pipeline_id) === String(id)));
 
-            const analyticsRes = await axios.get(`http://localhost:5000/api/analytics/pipeline/${id}`);
+            const analyticsRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/analytics/pipeline/${id}`);
             setAnalytics(analyticsRes.data);
 
             setLoading(false);

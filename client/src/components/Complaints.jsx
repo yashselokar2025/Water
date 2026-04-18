@@ -59,7 +59,7 @@ const Complaints = ({ pipelines = [], isAdmin = false, user = {} }) => {
 
     const fetchComplaints = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/complaint/all');
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/complaint/all`);
             setComplaints(res.data);
         } catch (err) {
             console.error("Error fetching complaints:", err);
@@ -78,7 +78,7 @@ const Complaints = ({ pipelines = [], isAdmin = false, user = {} }) => {
     const handleResolve = async (id) => {
         console.log("Attempting to resolve complaint:", id);
         try {
-            const res = await axios.put(`http://localhost:5000/api/complaint/status/${id}`, { status: 'Resolved' });
+            const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/complaint/status/${id}`, { status: 'Resolved' });
             console.log("Resolve response:", res.data);
             if (res.data.success) {
                 fetchComplaints(); // Immediate refresh
@@ -95,7 +95,7 @@ const Complaints = ({ pipelines = [], isAdmin = false, user = {} }) => {
         console.log("Attempting to delete complaint:", id);
         if (!window.confirm("Are you sure you want to permanently delete this complaint?")) return;
         try {
-            const res = await axios.delete(`http://localhost:5000/api/complaint/${id}`);
+            const res = await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/complaint/${id}`);
             console.log("Delete response:", res.data);
             if (res.data.success) {
                 fetchComplaints(); // Immediate refresh
@@ -123,7 +123,7 @@ const Complaints = ({ pipelines = [], isAdmin = false, user = {} }) => {
 
         try {
             if (isOnline) {
-                await axios.post('http://localhost:5000/api/complaint/add', payload);
+                await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/complaint/add`, payload);
                 setSubmitted(true);
                 setTimeout(() => setSubmitted(false), 3000);
             } else {

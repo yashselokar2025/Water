@@ -11,11 +11,11 @@ router.post('/reset', async (req, res) => {
     try {
         const database = db.getDB();
         if (sensorId && sensorId !== '') {
-            await database.run('DELETE FROM sensor_overrides WHERE sensor_id = ?', [parseInt(sensorId)]);
+            await db.execute('DELETE FROM sensor_overrides WHERE sensor_id = ?', [parseInt(sensorId)]);
         } else if (pipelineId && pipelineId !== '') {
-            await database.run('DELETE FROM sensor_overrides WHERE sensor_id IN (SELECT id FROM sensors WHERE pipeline_id = ?)', [parseInt(pipelineId)]);
+            await db.execute('DELETE FROM sensor_overrides WHERE sensor_id IN (SELECT id FROM sensors WHERE pipeline_id = ?)', [parseInt(pipelineId)]);
         } else {
-            await database.run('DELETE FROM sensor_overrides');
+            await db.execute('DELETE FROM sensor_overrides');
         }
         res.json({ success: true, message: "Simulation state restored to normal" });
     } catch (err) {
@@ -37,10 +37,10 @@ router.post('/simulate-leak', async (req, res) => {
         if (sensorId && sensorId !== '') {
             sensorsToUpdate.push(parseInt(sensorId));
         } else if (pipelineId && pipelineId !== '') {
-            const results = await database.all('SELECT id FROM sensors WHERE pipeline_id = ?', [parseInt(pipelineId)]);
+            const results = await db.query('SELECT id FROM sensors WHERE pipeline_id = ?', [parseInt(pipelineId)]);
             results.forEach(r => sensorsToUpdate.push(r.id));
         } else {
-            const results = await database.all('SELECT id FROM sensors');
+            const results = await db.query('SELECT id FROM sensors');
             results.forEach(r => sensorsToUpdate.push(r.id));
         }
 
@@ -56,7 +56,7 @@ router.post('/simulate-leak', async (req, res) => {
         }
 
         for (const id of sensorsToUpdate) {
-            await database.run(`
+            await db.execute(`
                 INSERT INTO sensor_overrides (sensor_id, pressure, flow, is_active)
                 VALUES (?, ?, ?, 1)
                 ON CONFLICT(sensor_id) DO UPDATE SET
@@ -84,10 +84,10 @@ router.post('/simulate-contamination', async (req, res) => {
         if (sensorId) {
             sensorsToUpdate.push(sensorId);
         } else if (pipelineId) {
-            const results = await database.all('SELECT id FROM sensors WHERE pipeline_id = ?', [pipelineId]);
+            const results = await db.query('SELECT id FROM sensors WHERE pipeline_id = ?', [pipelineId]);
             results.forEach(r => sensorsToUpdate.push(r.id));
         } else {
-            const results = await database.all('SELECT id FROM sensors');
+            const results = await db.query('SELECT id FROM sensors');
             results.forEach(r => sensorsToUpdate.push(r.id));
         }
 
@@ -100,7 +100,7 @@ router.post('/simulate-contamination', async (req, res) => {
         }
 
         for (const id of sensorsToUpdate) {
-            await database.run(`
+            await db.execute(`
                 INSERT INTO sensor_overrides (sensor_id, ph, turbidity, tds, is_active)
                 VALUES (?, ?, ?, ?, 1)
                 ON CONFLICT(sensor_id) DO UPDATE SET
@@ -128,7 +128,7 @@ router.post('/override', async (req, res) => {
         const id = parseInt(sensorId);
         if (isNaN(id)) throw new Error("Invalid Sensor ID");
 
-        await database.run(`
+        await db.execute(`
             INSERT INTO sensor_overrides (sensor_id, pressure, flow, ph, turbidity, tds, is_active)
             VALUES (?, ?, ?, ?, ?, ?, 1)
             ON CONFLICT(sensor_id) DO UPDATE SET
