@@ -9,14 +9,14 @@ const JWT_SECRET = 'smart_water_secret_key_123';
 router.post('/register', async (req, res) => {
     const { username, password, role, fullName, email, phone, pipelineId } = req.body;
     try {
-        const _db = db.getDB();
-        const existing = await _db.get('SELECT id FROM users WHERE username = ?', [username]);
+        const existingRes = await db.query('SELECT id FROM users WHERE username = ?', [username]);
+        const existing = existingRes[0];
         if (existing) return res.status(400).json({ error: 'Username already exists' });
 
         if (!phone) return res.status(400).json({ error: 'Phone number is required for SMS alerts' });
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        await _db.run(
+        await db.execute(
             'INSERT INTO users (username, password, role, full_name, email, phone, pipeline_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
             [username, hashedPassword, role || 'citizen', fullName, email, phone, pipelineId]
         );
@@ -35,8 +35,8 @@ router.post('/login', async (req, res) => {
     }
 
     try {
-        const _db = db.getDB();
-        const user = await _db.get('SELECT * FROM users WHERE username = ?', [username]);
+        const userRes = await db.query('SELECT * FROM users WHERE username = ?', [username]);
+        const user = userRes[0];
 
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ error: 'Invalid credentials' });
@@ -61,8 +61,8 @@ router.post('/login', async (req, res) => {
 // Get Current User Profile
 router.get('/me/:username', async (req, res) => {
     try {
-        const _db = db.getDB();
-        const user = await _db.get('SELECT username, role, full_name as fullName, email, phone, profile_picture as profilePicture, pipeline_id as pipelineId FROM users WHERE username = ?', [req.params.username]);
+        const userRes = await db.query('SELECT username, role, full_name as fullName, email, phone, profile_picture as profilePicture, pipeline_id as pipelineId FROM users WHERE username = ?', [req.params.username]);
+        const user = userRes[0];
         if (!user) return res.status(404).json({ error: 'User not found' });
         res.json(user);
     } catch (error) {
@@ -74,8 +74,7 @@ router.get('/me/:username', async (req, res) => {
 router.post('/profile/update', async (req, res) => {
     const { username, fullName, email, phone, profilePicture } = req.body;
     try {
-        const _db = db.getDB();
-        await _db.run(
+        await db.execute(
             'UPDATE users SET full_name = ?, email = ?, phone = ?, profile_picture = ? WHERE username = ?',
             [fullName, email, phone, profilePicture, username]
         );
