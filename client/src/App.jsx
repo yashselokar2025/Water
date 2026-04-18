@@ -86,9 +86,10 @@ function App() {
       const now = new Date().toLocaleTimeString();
       setLastUpdated(now);
       localStorage.setItem('last_updated_time', now);
+      localStorage.setItem('last_updated_time_ms', Date.now().toString());
 
       const smsRes = await axios.get(`${API_BASE}/sms-logs`);
-      setSmsLogs(smsRes.data);
+      setSmsLogs(() => [...smsRes.data]);
       console.log("Telemetry sync complete");
     } catch (err) {
       console.error(`Error fetching data at ${err.config?.url}:`, err);
@@ -103,39 +104,65 @@ function App() {
 
   useEffect(() => {
     if (user) {
+      console.log("System: Starting 2s real-time sync with watchdog");
       fetchData();
-      const interval = setInterval(fetchData, 5000);
+
+      const interval = setInterval(() => {
+        const timeSinceUpdate = Date.now() - new Date(localStorage.getItem('last_updated_time_ms') || 0).getTime();
+
+        if (timeSinceUpdate > 10000) {
+          console.warn("System watchdog: Data stale detected, restarting sync...");
+          fetchData();
+        } else {
+          console.log("System: Sensor update running");
+          fetchData();
+        }
+      }, 2000);
+
       return () => clearInterval(interval);
     }
   }, [user]);
 
+  const [lastAlertTime, setLastAlertTime] = useState({}); // Tracking { 'sensor-id-type': timestamp }
+
   // --- Real-time Alert Engine ---
   useEffect(() => {
     const newAlerts = [];
+    const now = Date.now();
+    const THROTTLE_MS = 5 * 60 * 1000; // 5 minutes
+
     sensors.forEach(sensor => {
       // Leak Detection (🚨)
       if (sensor.leakScore > 75) {
-        newAlerts.push({
-          id: `leak-${sensor.id}-${Date.now()}`,
-          type: 'leak',
-          severity: sensor.leakScore > 90 ? 'High' : 'Medium',
-          message: `🚨 Leak Detected at ${sensor.name}`,
-          location: sensor.location,
-          pipelineId: sensor.pipeline_id,
-          timestamp: new Date().toLocaleTimeString()
-        });
+        const alertKey = `leak-${sensor.id}`;
+        if (!lastAlertTime[alertKey] || now - lastAlertTime[alertKey] > THROTTLE_MS) {
+          newAlerts.push({
+            id: `${alertKey}-${now}`,
+            type: 'leak',
+            severity: sensor.leakScore > 90 ? 'High' : 'Medium',
+            message: `🚨 Leak Detected at ${sensor.name}`,
+            location: sensor.location,
+            pipelineId: sensor.pipeline_id,
+            timestamp: new Date().toLocaleTimeString()
+          });
+          setLastAlertTime(prev => ({ ...prev, [alertKey]: now }));
+        }
       }
       // Contamination Detection (⚠️)
       if (sensor.turbidity > 5.0 || sensor.tds > 500) {
-        newAlerts.push({
-          id: `contam-${sensor.id}-${Date.now()}`,
-          type: 'contamination',
-          severity: 'High',
-          message: `⚠️ Water Contamination at ${sensor.name}`,
-          location: sensor.location,
-          pipelineId: sensor.pipeline_id,
-          timestamp: new Date().toLocaleTimeString()
-        });
+        const alertKey = `contam-${sensor.id}`;
+        if (!lastAlertTime[alertKey] || now - lastAlertTime[alertKey] > THROTTLE_MS) {
+          newAlerts.push({
+            id: `${alertKey}-${now}`,
+            type: 'contamination',
+            severity: 'High',
+            message: `⚠️ Water Contamination at ${sensor.name}`,
+            location: sensor.location,
+            pipelineId: sensor.pipeline_id,
+            timestamp: new Date().toLocaleTimeString()
+          });
+          setLastAlertTime(prev => ({ ...prev, [alertKey]: now }));
+        }
       }
     });
 
@@ -150,7 +177,7 @@ function App() {
         return prev;
       });
     }
-  }, [sensors]);
+  }, [sensors, lastAlertTime]);
 
   const handleLogin = (userData) => {
     setUser(userData);
@@ -271,10 +298,10 @@ function App() {
         <main className="flex-1 flex flex-col h-screen overflow-hidden">
           <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-8 z-40">
             <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-2">
-                <Activity className="text-primary-500" />
-                <span className="font-semibold text-gray-700 dark:text-gray-200">System Live</span>
-                <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+              <div className="flex items-center space-x-2 bg-emerald-500/5 px-4 py-2 rounded-2xl border border-emerald-500/10">
+                <Activity className="text-emerald-500" size={18} />
+                <span className="font-black text-[10px] text-emerald-500 uppercase tracking-widest">Live Flow</span>
+                <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span>
               </div>
               <button
                 onClick={() => setIsAlertHistoryOpen(!isAlertHistoryOpen)}
@@ -324,11 +351,11 @@ function App() {
             )}
 
             <Routes>
-              <Route path="/" element={<Dashboard kpis={kpis} lastUpdated={lastUpdated} />} />
+              <Route path="/" element={<Dashboard kpis={kpis} sensors={sensors} pipelines={pipelines} lastUpdated={lastUpdated} />} />
               <Route path="/map" element={<MapView sensors={sensors} pipelines={pipelines} isAdmin={isAdmin} fetchData={fetchData} filterPipelineId={selectedPipelineId} onFilterChange={setSelectedPipelineId} />} />
               <Route path="/simulation-hub" element={isAdmin ? <SimulationHub sensors={sensors} fetchData={fetchData} /> : <Dashboard kpis={kpis} />} />
-              <Route path="/analytics" element={<Analytics sensors={sensors} />} />
-              <Route path="/water-quality" element={<WaterQuality />} />
+              <Route path="/analytics" element={<Analytics sensors={sensors} pipelines={pipelines} selectedPipelineId={selectedPipelineId} onPipelineChange={setSelectedPipelineId} />} />
+              <Route path="/water-quality" element={<WaterQuality liveSensors={sensors} pipelines={pipelines} selectedPipelineId={selectedPipelineId} onPipelineChange={setSelectedPipelineId} />} />
               <Route path="/health" element={<HealthData />} />
               <Route path="/complaints" element={<Complaints />} />
               <Route path="/leaks" element={isAdmin ? <LeakDetection /> : <Dashboard kpis={kpis} />} />

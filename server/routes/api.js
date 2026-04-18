@@ -63,31 +63,33 @@ router.get('/sensors', async (req, res) => {
             LEFT JOIN sensor_overrides o ON s.id = o.sensor_id AND o.is_active = 1
         `);
 
-        // Enriched loop using 6-layer AI logic
-        const enrichedSensors = rows.map(sensor => {
+        // Enriched loop using AI logic with historical context
+        const enrichedSensors = [];
+        for (const sensor of rows) {
             const neighbors = rows.filter(s => s.pipeline_id === sensor.pipeline_id && s.id !== sensor.id);
 
-            // Layer 1-3 Detection and prediction (Mocking trend for now)
-            const mockHistory = [sensor, { ...sensor, pressure: (sensor.pressure || 0) + 0.5 }];
-            const detection = aiEngine.detectAnomalies(sensor, neighbors);
-            const prediction = aiEngine.predictTrends(sensor, mockHistory);
-            const risk = aiEngine.evaluateRisk(detection, prediction);
-            const recommendations = aiEngine.getRecommendations(risk.level, detection.detectionInsights);
-            const decision = aiEngine.generateExecutiveDecision(risk.level, prediction);
+            // Fetch one previous reading to calculate ∆P/∆F
+            const history = await db.query(
+                'SELECT pressure, flow, ph, turbidity, tds FROM sensor_readings WHERE sensor_id = ? ORDER BY timestamp DESC LIMIT 1 OFFSET 1',
+                [sensor.id]
+            );
 
-            return {
+            const detection = aiEngine.detectAnomalies(sensor, neighbors, history);
+            const prediction = aiEngine.predictTrends(sensor, history); // Optional: history could be larger if needed
+            const risk = aiEngine.evaluateRisk({
+                insights: detection.detectionInsights.map(msg => ({ level: detection.leakScore > 75 ? 'High' : 'Medium', explanation: msg })),
+                confidence: 85
+            });
+
+            enrichedSensors.push({
                 ...sensor,
                 isAnomaly: detection.isAnomaly,
                 leakScore: detection.leakScore,
                 riskScore: risk.score,
                 riskLevel: risk.level,
-                trend: prediction.trend,
-                forecast: prediction.prediction,
-                recommendations,
-                decision,
-                reason: detection.detectionInsights.join(' | ') || 'Stability confirmed by peer nodes'
-            };
-        });
+                anomalyReason: detection.detectionInsights.join(' | ') || 'Stability confirmed by peer nodes'
+            });
+        }
 
         res.json(enrichedSensors);
     } catch (error) {
@@ -95,7 +97,7 @@ router.get('/sensors', async (req, res) => {
     }
 });
 
-// --- Analytics (Historical) ---
+// --- Analytics (Historical) - Fixed path ---
 router.get('/analytics/:sensorId', async (req, res) => {
     const { sensorId } = req.params;
     try {
@@ -141,40 +143,45 @@ router.post('/health', async (req, res) => {
 // --- AI Logic: Leak Detection ---
 router.get('/ai/leak-detection', async (req, res) => {
     try {
-        const sensors = await db.query('SELECT id, name FROM sensors');
+        const sensors = await db.query('SELECT * FROM sensors');
         const leakScores = [];
 
         for (const sensor of sensors) {
-            const readings = await db.query(
-                'SELECT pressure, flow FROM sensor_readings WHERE sensor_id = ? ORDER BY timestamp DESC LIMIT 2',
+            // Get history for ∆P and ∆F
+            const history = await db.query(
+                'SELECT pressure, flow, ph, turbidity, tds FROM sensor_readings WHERE sensor_id = ? ORDER BY timestamp DESC LIMIT 2',
                 [sensor.id]
             );
 
-            if (readings.length < 2) continue;
+            // Get latest reading (including overrides)
+            const latestRes = await db.query(`
+                SELECT s.id, 
+                       COALESCE(o.pressure, r.pressure) as pressure, 
+                       COALESCE(o.flow, r.flow) as flow, 
+                       COALESCE(o.ph, r.ph) as ph, 
+                       COALESCE(o.turbidity, r.turbidity) as turbidity, 
+                       COALESCE(o.tds, r.tds) as tds
+                FROM sensors s
+                LEFT JOIN (
+                    SELECT * FROM sensor_readings 
+                    WHERE id IN (SELECT MAX(id) FROM sensor_readings GROUP BY sensor_id)
+                ) r ON s.id = r.sensor_id
+                LEFT JOIN sensor_overrides o ON s.id = o.sensor_id AND o.is_active = 1
+                WHERE s.id = ?
+            `, [sensor.id]);
 
-            const curr = readings[0];
-            const prev = readings[1];
+            const latest = latestRes[0] || sensor;
+            const neighbors = sensors.filter(s => s.pipeline_id === sensor.pipeline_id && s.id !== sensor.id);
 
-            const pressure_drop = Math.max(0, prev.pressure - curr.pressure) * 10;
-            const flow_anomaly = Math.abs(curr.flow - prev.flow) * 5;
-
-            const otherReadings = await db.query(
-                'SELECT pressure FROM sensor_readings WHERE sensor_id != ? ORDER BY id DESC LIMIT 1',
-                [sensor.id]
-            );
-            const neighbor_difference = Math.abs(curr.pressure - (otherReadings[0]?.pressure || curr.pressure)) * 5;
-
-            const leak_score = (pressure_drop + flow_anomaly + neighbor_difference) / 3;
-
-            let status = 'Low';
-            if (leak_score > 30) status = 'Medium';
-            if (leak_score > 60) status = 'High';
+            // Use unified AI engine logic
+            const detection = aiEngine.detectAnomalies(latest, neighbors, history);
 
             leakScores.push({
                 sensorId: sensor.id,
                 sensorName: sensor.name,
-                leakProbability: Math.min(100, Math.round(leak_score)),
-                status
+                leakProbability: Math.min(100, Math.round(detection.leakScore)),
+                status: detection.leakScore > 60 ? 'High' : (detection.leakScore > 30 ? 'Medium' : 'Low'),
+                insights: detection.detectionInsights
             });
         }
         res.json(leakScores);
@@ -190,22 +197,29 @@ router.get('/ai/outbreak-risk', async (req, res) => {
         const risks = [];
 
         for (const village of villages) {
-            const water_quality_score = village.water_quality === 'Poor' ? 80 : (village.water_quality === 'Fair' ? 40 : 10);
-            const health_score = Math.min(100, village.health_cases * 5);
+            // Formula: riskScore = (water_quality + health_cases + complaints)
 
+            // 1. Water Quality Component (0-100)
+            const water_quality_score = village.water_quality === 'Poor' ? 100 : (village.water_quality === 'Fair' ? 50 : 10);
+
+            // 2. Health Data Component (Normalized to 100)
+            const health_score = Math.min(100, (village.health_cases / 10) * 100);
+
+            // 3. Complaints Component (Normalized to 100)
             const complaints = await db.query(
                 'SELECT COUNT(*) as count FROM complaints WHERE location LIKE ? AND status != "Resolved"',
                 [`%${village.name}%`]
             );
-            const complaint_score = Math.min(100, complaints[0].count * 10);
+            const complaint_score = Math.min(100, complaints[0].count * 20);
 
+            // Aggregated Risk Score
             const risk_score = (water_quality_score + health_score + complaint_score) / 3;
 
             let level = 'Low';
             if (risk_score > 30) level = 'Medium';
             if (risk_score > 60) level = 'High';
 
-            let explanation = `Risk is ${level} based on ${village.water_quality} water quality and ${village.health_cases} health cases.`;
+            let explanation = `Consolidated risk is ${level}. Water Factor: ${water_quality_score}%, Health Factor: ${Math.round(health_score)}%, Community Complaints: ${complaint_score}%`;
 
             risks.push({
                 villageId: village.id,
@@ -225,22 +239,70 @@ router.get('/ai/outbreak-risk', async (req, res) => {
 router.get('/ai/predict/:sensorId', async (req, res) => {
     const { sensorId } = req.params;
     try {
-        const readings = await db.query(
-            'SELECT pressure, turbidity FROM sensor_readings WHERE sensor_id = ? ORDER BY timestamp DESC LIMIT 5',
+        const history = await db.query(
+            'SELECT pressure, flow, ph, turbidity, tds FROM sensor_readings WHERE sensor_id = ? ORDER BY timestamp DESC LIMIT 30',
             [sensorId]
         );
 
-        if (readings.length < 2) return res.json({ message: "Not enough data for prediction" });
+        if (history.length < 3) return res.json({ status: 'Insufficient Data' });
 
-        const p_diff = readings[0].pressure - readings[1].pressure;
-        const t_diff = readings[0].turbidity - readings[1].turbidity;
+        const sensor = history[0];
+        const past = history.slice(1);
 
-        let predictions = [];
-        if (p_diff < -0.1) predictions.push("Pressure expected to drop in next 10 minutes");
-        if (t_diff > 0.2) predictions.push("Contamination risk increasing (turbidity rising)");
-        if (predictions.length === 0) predictions.push("No significant anomalies predicted");
+        const advancedAnalytics = aiEngine.getAdvancedAnalytics(sensor, past);
+        const risk = aiEngine.evaluateRisk(advancedAnalytics);
 
-        res.json({ sensorId, predictions });
+        res.json({
+            sensorId,
+            ...advancedAnalytics,
+            riskCalculated: risk
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// --- Analytics Data ---
+router.get('/analytics/:sensorId', async (req, res) => {
+    const { sensorId } = req.params;
+    try {
+        const history = await db.query(
+            'SELECT timestamp as time, pressure, flow, ph, turbidity, tds FROM sensor_readings WHERE sensor_id = ? ORDER BY timestamp DESC LIMIT 20',
+            [sensorId]
+        );
+
+        const data = history.reverse().map(r => ({
+            ...r,
+            time: new Date(r.time.replace(' ', 'T')).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }));
+
+        // Add Forecast Points
+        if (data.length > 5) {
+            const latestReadings = [...history].reverse(); // history is sorted ASC at this point in the code (due to .reverse() on line 274) but wait...
+            // Actually history.reverse() on line 274 MUTATED the array!
+            // So history is now ASC.
+            const lastDataPoint = data[data.length - 1];
+            const forecast = [];
+
+            for (let i = 1; i <= 3; i++) {
+                const fPoint = {
+                    time: `Forecast +${i * 5}m`,
+                    isForecast: true
+                };
+
+                ['pressure', 'flow', 'ph', 'turbidity', 'tds'].forEach(m => {
+                    // predictTrends expects history in DESC order (latest first)
+                    const trend = aiEngine.predictTrends([...history].reverse(), m);
+                    const lastVal = lastDataPoint[m];
+                    const change = trend.direction === 'Increasing' ? 0.04 : (trend.direction === 'Decreasing' ? -0.04 : 0);
+                    fPoint[m] = parseFloat((lastVal + (lastVal * change * i)).toFixed(2));
+                });
+                forecast.push(fPoint);
+            }
+            res.json([...data, ...forecast]);
+        } else {
+            res.json(data);
+        }
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

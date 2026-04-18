@@ -104,6 +104,8 @@ const SimulationHub = ({ sensors, fetchData }) => {
         finally { setIsLoading(false); }
     };
 
+    const [simulationIntensity, setSimulationIntensity] = useState('high');
+
     // --- Simulation Handlers ---
     const handleScenario = async (type) => {
         setIsLoading(true);
@@ -111,9 +113,10 @@ const SimulationHub = ({ sensors, fetchData }) => {
             const endpoint = type === 'leak' ? '/testing/simulate-leak' : '/testing/simulate-contamination';
             await axios.post(`${API_BASE}${endpoint}`, {
                 pipelineId: targetPipeline,
-                sensorId: targetSensor
+                sensorId: targetSensor,
+                intensity: simulationIntensity
             });
-            showStatus('success', `${type.toUpperCase()} scenario injected`);
+            showStatus('success', `${type.toUpperCase()} scenario (${simulationIntensity.toUpperCase()}) injected`);
             fetchData();
         } catch (err) { showStatus('error', `Scenario Injection Failed`); }
         finally { setIsLoading(false); }
@@ -376,19 +379,40 @@ const SimulationHub = ({ sensors, fetchData }) => {
                                     </div>
                                 </div>
 
+                                <div className="space-y-6">
+                                    <div className="flex items-center gap-3">
+                                        <Zap className="text-amber-500" size={18} />
+                                        <h3 className="text-xs font-black dark:text-white uppercase tracking-widest">Simulation Intensity</h3>
+                                    </div>
+                                    <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-white/5">
+                                        {['low', 'medium', 'high'].map(intensity => (
+                                            <button
+                                                key={intensity}
+                                                onClick={() => setSimulationIntensity(intensity)}
+                                                className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${simulationIntensity === intensity ? (intensity === 'high' ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' : intensity === 'medium' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20') : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                                            >
+                                                {intensity}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest text-center">
+                                        {simulationIntensity === 'high' ? '⚠️ CRITICAL: 60% PRESSURE DROP | TOXIC TURBIDITY' : simulationIntensity === 'medium' ? '⚡ MODERATE: 30% DEVIATION | WARNING LEVELS' : '✅ LOW: SUBTLE FLUCTUATIONS | MINOR ANOMALIES'}
+                                    </p>
+                                </div>
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <button onClick={() => handleScenario('leak')} className="bg-red-500/10 hover:bg-red-500 hover:text-white border border-red-500/20 p-8 rounded-[2rem] text-red-500 flex flex-col items-center gap-3 group transition-all">
-                                        <Droplet size={32} className="group-hover:scale-110" />
+                                    <button onClick={() => handleScenario('leak')} className="bg-red-500/10 hover:bg-red-500 hover:text-white border border-red-500/20 p-8 rounded-[2rem] text-red-500 flex flex-col items-center gap-3 group transition-all shadow-xl hover:shadow-red-500/20">
+                                        <Droplet size={40} className="group-hover:scale-110 transition-transform" />
                                         <div className="text-center">
-                                            <span className="text-[9px] font-black uppercase tracking-widest block opacity-60">Inject</span>
-                                            <h4 className="text-base font-black uppercase tracking-tighter">Mass Leak</h4>
+                                            <h4 className="text-lg font-black uppercase tracking-tighter">SIMULATE LEAK</h4>
+                                            <p className="text-[9px] font-black uppercase tracking-widest opacity-60 mt-1">Pressure Drop & Flow Surge</p>
                                         </div>
                                     </button>
-                                    <button onClick={() => handleScenario('contamination')} className="bg-amber-500/10 hover:bg-amber-500 hover:text-white border border-amber-500/20 p-8 rounded-[2rem] text-amber-500 flex flex-col items-center gap-3 group transition-all">
-                                        <FlaskConical size={32} className="group-hover:scale-110" />
+                                    <button onClick={() => handleScenario('contamination')} className="bg-amber-500/10 hover:bg-amber-500 hover:text-white border border-amber-500/20 p-8 rounded-[1.8rem] text-amber-500 flex flex-col items-center gap-3 group transition-all shadow-xl hover:shadow-amber-500/20">
+                                        <FlaskConical size={40} className="group-hover:scale-110 transition-transform" />
                                         <div className="text-center">
-                                            <span className="text-[9px] font-black uppercase tracking-widest block opacity-60">Inject</span>
-                                            <h4 className="text-base font-black uppercase tracking-tighter">Toxicity</h4>
+                                            <h4 className="text-lg font-black uppercase tracking-tighter">SIMULATE TOXICITY</h4>
+                                            <p className="text-[9px] font-black uppercase tracking-widest opacity-60 mt-1">PH / TDS / Turbidity Breach</p>
                                         </div>
                                     </button>
                                 </div>

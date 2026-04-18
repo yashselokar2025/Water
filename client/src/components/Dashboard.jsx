@@ -28,26 +28,23 @@ import axios from 'axios';
 import { exportToCSV } from '../utils/csvExport';
 import AIInsights from './AIInsights';
 
-const Dashboard = ({ kpis, lastUpdated }) => {
+const Dashboard = ({ kpis, lastUpdated, sensors: propsSensors, pipelines: propsPipelines }) => {
     const navigate = useNavigate();
     const [villages, setVillages] = useState([]);
-    const [pipelines, setPipelines] = useState([]);
-    const [sensors, setSensors] = useState([]);
+
+    const sensors = useMemo(() => propsSensors || [], [propsSensors]);
+    const pipelines = useMemo(() => propsPipelines || [], [propsPipelines]);
 
     useEffect(() => {
-        const fetchDashboardData = async () => {
+        const fetchVillages = async () => {
             try {
                 const villageRes = await axios.get('http://localhost:5000/api/villages');
                 setVillages(villageRes.data);
-                const pipeRes = await axios.get('http://localhost:5000/api/pipelines');
-                setPipelines(pipeRes.data);
-                const sensorRes = await axios.get('http://localhost:5000/api/sensors');
-                setSensors(sensorRes.data);
-            } catch (err) {
-                console.error(err);
-            }
+            } catch (err) { console.error(err); }
         };
-        fetchDashboardData();
+        fetchVillages();
+        const interval = setInterval(fetchVillages, 10000); // Villages change less often
+        return () => clearInterval(interval);
     }, []);
 
     const kpiData = [
@@ -65,11 +62,11 @@ const Dashboard = ({ kpis, lastUpdated }) => {
             { name: '23:59', safe: 0, unsafe: 0 }
         ];
         return [
-            { name: '00:00', safe: kpis.activeSensors * 0.4, unsafe: kpis.unsafeSources * 0.2 },
-            { name: '06:00', safe: kpis.activeSensors * 0.5, unsafe: kpis.unsafeSources * 0.4 },
-            { name: '12:00', safe: kpis.activeSensors * 0.8, unsafe: kpis.unsafeSources * 0.6 },
-            { name: '18:00', safe: kpis.activeSensors * 0.9, unsafe: kpis.unsafeSources * 0.3 },
-            { name: '24:00', safe: kpis.activeSensors * 0.7, unsafe: kpis.unsafeSources * 0.5 }
+            { name: '00:00', safe: parseFloat((kpis.activeSensors * 0.4).toFixed(2)), unsafe: parseFloat((kpis.unsafeSources * 0.2).toFixed(2)) },
+            { name: '06:00', safe: parseFloat((kpis.activeSensors * 0.5).toFixed(2)), unsafe: parseFloat((kpis.unsafeSources * 0.4).toFixed(2)) },
+            { name: '12:00', safe: parseFloat((kpis.activeSensors * 0.8).toFixed(2)), unsafe: parseFloat((kpis.unsafeSources * 0.6).toFixed(2)) },
+            { name: '18:00', safe: parseFloat((kpis.activeSensors * 0.9).toFixed(2)), unsafe: parseFloat((kpis.unsafeSources * 0.3).toFixed(2)) },
+            { name: '24:00', safe: parseFloat((kpis.activeSensors * 0.7).toFixed(2)), unsafe: parseFloat((kpis.unsafeSources * 0.5).toFixed(2)) }
         ];
     }, [kpis]);
 
@@ -160,8 +157,8 @@ const Dashboard = ({ kpis, lastUpdated }) => {
                             <span className="h-3 w-3 rounded-full bg-primary-500"></span>
                         </div>
                     </div>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <AreaChart data={qualityChartData}>
+                    <ResponsiveContainer width="100%" height={320} minWidth={0} minHeight={320}>
+                        <AreaChart data={[...qualityChartData]}>
                             <defs>
                                 <linearGradient id="colorSafe" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />

@@ -21,20 +21,42 @@ app.use('/api', apiRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/testing', testingRoutes);
 
-// Simulation controls
-app.post('/api/simulate/leak', (req, res) => {
-    simulation.setSimulationState({ leak: true });
-    res.json({ message: 'Leak simulation enabled' });
+// Simulation controls (Legacy Support pointing to new override system)
+app.post('/api/simulate/leak', async (req, res) => {
+    try {
+        const database = db.getDB();
+        const sensors = await database.all('SELECT id FROM sensors');
+        for (const s of sensors) {
+            await database.run(`
+                INSERT INTO sensor_overrides (sensor_id, pressure, flow, is_active)
+                VALUES (?, 1.0, 35.0, 1)
+                ON CONFLICT(sensor_id) DO UPDATE SET pressure=1.0, flow=35.0, is_active=1
+            `, [s.id]);
+        }
+        res.json({ message: 'System-wide leak simulation enabled' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/simulate/contamination', (req, res) => {
-    simulation.setSimulationState({ contamination: true });
-    res.json({ message: 'Contamination simulation enabled' });
+app.post('/api/simulate/contamination', async (req, res) => {
+    try {
+        const database = db.getDB();
+        const sensors = await database.all('SELECT id FROM sensors');
+        for (const s of sensors) {
+            await database.run(`
+                INSERT INTO sensor_overrides (sensor_id, ph, turbidity, tds, is_active)
+                VALUES (?, 9.8, 35.0, 1250, 1)
+                ON CONFLICT(sensor_id) DO UPDATE SET ph=9.8, turbidity=35.0, tds=1250, is_active=1
+            `, [s.id]);
+        }
+        res.json({ message: 'System-wide contamination simulation enabled' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/simulate/reset', (req, res) => {
-    simulation.setSimulationState({ leak: false, contamination: false });
-    res.json({ message: 'Simulation reset' });
+app.post('/api/simulate/reset', async (req, res) => {
+    try {
+        await db.getDB().run('DELETE FROM sensor_overrides');
+        res.json({ message: 'Simulation reset completed' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 async function startServer() {

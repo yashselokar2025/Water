@@ -12,21 +12,26 @@ const simulateReadings = async () => {
         const _db = db.getDB();
         const sensors = await _db.all('SELECT id FROM sensors');
         for (const sensor of sensors) {
-            let pressure = 3.5 + (Math.random() - 0.5) * 0.2; // 3.5 bar avg
-            let flow = 15 + (Math.random() - 0.5) * 2; // 15 L/s avg
-            let ph = 7.2 + (Math.random() - 0.5) * 0.4; // 7.2 avg
-            let turbidity = 1.2 + (Math.random() - 0.5) * 0.5; // 1.2 NTU avg
-            let tds = 250 + (Math.random() - 0.5) * 50; // 250 ppm avg
+            // Check for overrides
+            const override = await _db.get('SELECT * FROM sensor_overrides WHERE sensor_id = ? AND is_active = 1', [sensor.id]);
 
-            if (simulationState.leak && sensor.id === 2) {
-                pressure -= 1.5;
-                flow += 5;
-            }
+            let pressure, flow, ph, turbidity, tds;
 
-            if (simulationState.contamination && sensor.id === 4) {
-                ph = 8.8 + (Math.random() * 0.5);
-                turbidity = 15 + (Math.random() * 5);
-                tds = 800 + (Math.random() * 100);
+            if (override) {
+                console.log(`Applying OVERRIDE to sensor ${sensor.id}: P=${override.pressure}, F=${override.flow}`);
+                // Apply override with small jitter (+/- 2%)
+                pressure = override.pressure + (Math.random() - 0.5) * (override.pressure * 0.04);
+                flow = override.flow + (Math.random() - 0.5) * (override.flow * 0.04);
+                ph = (override.ph !== null && override.ph !== undefined) ? override.ph + (Math.random() - 0.5) * 0.1 : 7.2 + (Math.random() - 0.5) * 0.4;
+                turbidity = (override.turbidity !== null && override.turbidity !== undefined) ? override.turbidity + (Math.random() - 0.5) * 0.5 : 1.2 + (Math.random() - 0.5) * 0.5;
+                tds = (override.tds !== null && override.tds !== undefined) ? override.tds + (Math.random() - 0.5) * 10 : 250 + (Math.random() - 0.5) * 50;
+            } else {
+                // Normal generation
+                pressure = 3.5 + (Math.random() - 0.5) * 0.2;
+                flow = 15 + (Math.random() - 0.5) * 2;
+                ph = 7.2 + (Math.random() - 0.5) * 0.4;
+                turbidity = 1.2 + (Math.random() - 0.5) * 0.5;
+                tds = 250 + (Math.random() - 0.5) * 50;
             }
 
             await _db.run(
@@ -35,8 +40,8 @@ const simulateReadings = async () => {
             );
 
             let status = 'Active';
-            if (pressure < 2 || ph < 6.5 || ph > 8.5 || turbidity > 5) status = 'Warning';
-            if (pressure < 1 || turbidity > 10 || ph > 9 || ph < 6) status = 'Critical';
+            if (pressure < 2.5 || ph < 6.8 || ph > 8.2 || turbidity > 3 || tds > 400) status = 'Warning';
+            if (pressure < 1.5 || turbidity > 8 || ph > 9.2 || ph < 5.8 || tds > 800) status = 'Critical';
 
             await _db.run('UPDATE sensors SET status = ? WHERE id = ?', [status, sensor.id]);
 

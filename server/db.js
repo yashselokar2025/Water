@@ -134,6 +134,12 @@ const initDB = async () => {
     try { await db.run('ALTER TABLE users ADD COLUMN full_name TEXT'); } catch (e) { }
     try { await db.run('ALTER TABLE users ADD COLUMN email TEXT'); } catch (e) { }
 
+    // Create Indexes for Performance
+    await db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_sensor_readings_id_time ON sensor_readings (sensor_id, timestamp DESC);
+        CREATE INDEX IF NOT EXISTS idx_alerts_unresolved ON alerts (is_resolved) WHERE is_resolved = 0;
+    `);
+
     // Seed Users if empty (admin/admin123, user/user123)
     const userCount = await db.get('SELECT COUNT(*) as count FROM users');
     if (userCount.count === 0) {

@@ -239,9 +239,9 @@ const MapView = ({ sensors, pipelines, isAdmin, onCoordinateSelect, drawingMode,
                                     <Polyline
                                         key={pipe.id}
                                         positions={coords}
-                                        color={isSelected ? '#eab308' : (stats.status === 'Critical' ? '#ef4444' : "#3b82f6")}
-                                        weight={isSelected ? 10 : (stats.status === 'Critical' ? 12 : 6)}
-                                        opacity={isSelected ? 1 : (stats.status === 'Critical' ? 1 : (filterPipelineId ? 0.05 : 0.8))}
+                                        color={isSelected ? '#f59e0b' : (stats.status === 'Critical' ? '#ef4444' : "#3b82f6")}
+                                        weight={isSelected ? 12 : (stats.status === 'Critical' ? 12 : 6)}
+                                        opacity={isSelected ? 1 : (stats.status === 'Critical' ? 1 : (filterPipelineId ? 0.2 : 0.8))}
                                         eventHandlers={{
                                             click: (e) => {
                                                 if (onFilterChange) onFilterChange(String(pipe.id));
@@ -340,13 +340,14 @@ const MapView = ({ sensors, pipelines, isAdmin, onCoordinateSelect, drawingMode,
 
                                 <CircleMarker
                                     center={[parseFloat(sensor.lat), parseFloat(sensor.lng)]}
-                                    radius={isSelected ? 12 : 8}
+                                    radius={isSelected ? 14 : 10}
                                     pathOptions={{
-                                        fillColor: (sensor.status === 'Critical' || sensor.isAnomaly) ? '#ef4444' : (isSelected ? '#eab308' : '#22c55e'),
-                                        color: (sensor.status === 'Critical' || sensor.isAnomaly) ? '#b91c1c' : (isSelected ? '#ca8a04' : '#15803d'),
+                                        fillColor: (sensor.status === 'Critical' || sensor.isAnomaly || sensor.leakScore > 75) ? '#ef4444' : (isSelected ? '#eab308' : '#22c55e'),
+                                        color: (sensor.status === 'Critical' || sensor.isAnomaly || sensor.leakScore > 75) ? '#7f1d1d' : (isSelected ? '#ca8a04' : '#15803d'),
                                         fillOpacity: 1,
-                                        weight: isSelected ? 4 : 2
+                                        weight: (sensor.isAnomaly || isSelected || sensor.leakScore > 75) ? 5 : 2
                                     }}
+                                    className={(sensor.status === 'Critical' || sensor.isAnomaly || sensor.leakScore > 75) ? 'animate-pulse' : ''}
                                 >
                                     <Popup>
                                         <div className="p-2 min-w-[200px]">
@@ -390,11 +391,11 @@ const MapView = ({ sensors, pipelines, isAdmin, onCoordinateSelect, drawingMode,
                                                 )}
                                                 <div className="flex justify-between text-[10px] font-black pt-2">
                                                     <span className="text-gray-400 uppercase tracking-widest">Leak Risk</span>
-                                                    <span className={`${isHighRisk ? 'text-red-500' : 'text-gray-600'} tracking-tighter`}>{sensor.leakScore}%</span>
+                                                    <span className={`${isHighRisk ? 'text-red-500' : 'text-gray-600'} tracking-tighter`}>{sensor.leakScore?.toFixed(2)}%</span>
                                                 </div>
                                                 <div className="flex justify-between text-[10px] font-black">
                                                     <span className="text-gray-400 uppercase tracking-widest">Quality (TDS)</span>
-                                                    <span className={`${sensor.tds > 500 ? 'text-red-500' : 'text-emerald-500'} tracking-tighter`}>{sensor.tds}ppm</span>
+                                                    <span className={`${sensor.tds > 500 ? 'text-red-500' : 'text-emerald-500'} tracking-tighter`}>{sensor.tds?.toFixed(2)}ppm</span>
                                                 </div>
                                             </div>
                                         </div>

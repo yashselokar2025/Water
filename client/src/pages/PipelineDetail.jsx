@@ -36,6 +36,8 @@ const PipelineDetail = ({ sensors, pipelines }) => {
     useEffect(() => {
         if (pipelineSensors.length > 0) {
             fetchHistory();
+            const interval = setInterval(fetchHistory, 2000);
+            return () => clearInterval(interval);
         }
     }, [id, pipelineSensors]);
 
@@ -91,9 +93,9 @@ const PipelineDetail = ({ sensors, pipelines }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
                     { label: 'Avg Pressure', value: stats?.avgPressure.toFixed(2), unit: 'bar', icon: Wind, color: 'text-blue-500' },
-                    { label: 'Avg Flow', value: stats?.avgFlow.toFixed(1), unit: 'L/s', icon: Droplet, color: 'text-indigo-500' },
-                    { label: 'Avg TDS', value: stats?.avgTds.toFixed(0), unit: 'ppm', icon: Activity, color: 'text-emerald-500' },
-                    { label: 'Leak Risk', value: stats?.maxLeakRisk.toFixed(0), unit: '%', icon: AlertTriangle, color: 'text-amber-500' }
+                    { label: 'Avg Flow', value: stats?.avgFlow.toFixed(2), unit: 'L/s', icon: Droplet, color: 'text-indigo-500' },
+                    { label: 'Avg TDS', value: stats?.avgTds.toFixed(2), unit: 'ppm', icon: Activity, color: 'text-emerald-500' },
+                    { label: 'Leak Risk', value: stats?.maxLeakRisk.toFixed(2), unit: '%', icon: AlertTriangle, color: 'text-amber-500' }
                 ].map((s, i) => (
                     <div key={i} className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm relative overflow-hidden group">
                         <div className={`absolute top-0 left-0 w-1 h-full bg-${s.color.split('-')[1]}-500`}></div>
@@ -116,9 +118,9 @@ const PipelineDetail = ({ sensors, pipelines }) => {
                             <TrendingUp className="mr-2 text-blue-500" /> Pressure Stability Index
                         </h4>
                     </div>
-                    <div className="h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={history}>
+                    <div className="h-[350px]">
+                        <ResponsiveContainer width="100%" height={350} minWidth={0} minHeight={350}>
+                            <AreaChart data={[...history]}>
                                 <defs>
                                     <linearGradient id="colorPressure" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
@@ -143,9 +145,9 @@ const PipelineDetail = ({ sensors, pipelines }) => {
                             <BarChart3 className="mr-2 text-emerald-500" /> Quality Analytics (TDS)
                         </h4>
                     </div>
-                    <div className="h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={history}>
+                    <div className="h-[350px]">
+                        <ResponsiveContainer width="100%" height={350} minWidth={0} minHeight={350}>
+                            <LineChart data={[...history]}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
                                 <XAxis dataKey="timestamp" hide />
                                 <YAxis orientation="right" strokeOpacity={0.5} stroke="#94a3b8" fontSize={10} />
@@ -179,7 +181,7 @@ const PipelineDetail = ({ sensors, pipelines }) => {
                                     <td className="px-8 py-4 font-black dark:text-gray-200">{s.name}</td>
                                     <td className="px-8 py-4 text-sm text-gray-500">{s.location}</td>
                                     <td className="px-8 py-4 font-mono text-xs">{s.pressure.toFixed(2)} bar</td>
-                                    <td className="px-8 py-4 font-mono text-xs">{s.tds} ppm</td>
+                                    <td className="px-8 py-4 font-mono text-xs">{s.tds?.toFixed(2)} ppm</td>
                                     <td className="px-8 py-4">
                                         <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${s.status === 'Safe' ? 'text-green-500 bg-green-500/10' : 'text-red-500 bg-red-500/10'}`}>
                                             {s.status}

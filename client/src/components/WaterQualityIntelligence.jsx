@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import {
     Droplet,
@@ -25,16 +25,39 @@ import {
     ResponsiveContainer
 } from 'recharts';
 
-const WaterQualityIntelligence = () => {
+const WaterQualityIntelligence = ({ liveSensors: propsSensors, pipelines = [], selectedPipelineId, onPipelineChange }) => {
     const [mode, setMode] = useState('live'); // 'live' or 'upload'
-    const [liveSensors, setLiveSensors] = useState([]);
+    const [internalSensors, setInternalSensors] = useState([]);
     const [labData, setLabData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    const liveSensors = propsSensors || internalSensors;
+
+    const filteredSensors = selectedPipelineId
+        ? liveSensors.filter(s => String(s.pipeline_id) === String(selectedPipelineId))
+        : liveSensors;
+
+    const aggregateData = useMemo(() => {
+        if (!filteredSensors.length) return { ph: 0, tds: 0, turbidity: 0 };
+        const sum = filteredSensors.reduce((acc, s) => ({
+            ph: acc.ph + (s.ph || 0),
+            tds: acc.tds + (s.tds || 0),
+            turbidity: acc.turbidity + (s.turbidity || 0)
+        }), { ph: 0, tds: 0, turbidity: 0 });
+
+        return {
+            ph: sum.ph / filteredSensors.length,
+            tds: sum.tds / filteredSensors.length,
+            turbidity: sum.turbidity / filteredSensors.length
+        };
+    }, [filteredSensors]);
+
     // Enhanced Clinical Classification Logic
     const analyzeQuality = (val) => {
-        const { ph, tds, turbidity } = val;
+        const ph = val.ph || 0;
+        const tds = val.tds || 0;
+        const turbidity = val.turbidity || 0;
         let drinkable = true;
         let usable = true;
         let toxic = false;
@@ -83,9 +106,12 @@ const WaterQualityIntelligence = () => {
     };
 
     const fetchLiveData = async () => {
+        if (propsSensors) return; // Use data from props if available
+        console.log("WaterQuality: Sensor update running");
         try {
             const res = await axios.get('http://localhost:5000/api/sensors');
-            setLiveSensors(res.data);
+            setInternalSensors(() => [...res.data]);
+            console.log("WaterQuality: New data added");
             setLoading(false);
         } catch (err) {
             setError("Failed to synchronize IoT feed");
@@ -96,10 +122,10 @@ const WaterQualityIntelligence = () => {
     useEffect(() => {
         if (mode === 'live') {
             fetchLiveData();
-            const interval = setInterval(fetchLiveData, 5000);
+            const interval = setInterval(fetchLiveData, 2000);
             return () => clearInterval(interval);
         }
-    }, [mode]);
+    }, [mode, propsSensors]); // Add propsSensors to avoid stale state if it changes
 
     const handleFileUpload = (e) => {
         const file = e.target.files[0];
@@ -160,28 +186,48 @@ const WaterQualityIntelligence = () => {
 
     return (
         <div className="space-y-8 animate-in fade-in duration-700">
-            {/* Header with Mode Toggle */}
+            {/* Header with Mode Toggle & Pipeline Selector */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
                     <h2 className="text-3xl font-black dark:text-white tracking-tighter uppercase">Water Quality Intelligence</h2>
-                    <p className="text-gray-500 font-bold text-sm tracking-widest mt-1 uppercase">Hybrid IoT & Chemical Analysis Suite</p>
+                    <p className="text-gray-500 font-bold text-sm tracking-widest mt-1 uppercase">
+                        {selectedPipelineId ? `Pipeline: ${pipelines.find(p => String(p.id) === String(selectedPipelineId))?.name}` : 'Regional Quality Overview'}
+                    </p>
                 </div>
 
-                <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl shadow-inner border border-white/5">
-                    <button
-                        onClick={() => setMode('live')}
-                        className={`flex items-center space-x-2 px-6 py-2 rounded-xl text-xs font-black transition-all ${mode === 'live' ? 'bg-white dark:bg-gray-700 shadow-xl text-primary-500' : 'text-gray-400 hover:text-gray-500'}`}
-                    >
-                        <Activity size={14} />
-                        <span>LIVE IOT FEED</span>
-                    </button>
-                    <button
-                        onClick={() => setMode('upload')}
-                        className={`flex items-center space-x-2 px-6 py-2 rounded-xl text-xs font-black transition-all ${mode === 'upload' ? 'bg-white dark:bg-gray-700 shadow-xl text-primary-500' : 'text-gray-400 hover:text-gray-500'}`}
-                    >
-                        <Upload size={14} />
-                        <span>LAB REPORT IMPORT</span>
-                    </button>
+                <div className="flex items-center space-x-4">
+                    <div className="relative">
+                        <select
+                            value={selectedPipelineId || ''}
+                            onChange={(e) => onPipelineChange(e.target.value)}
+                            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-xs font-black dark:text-gray-200 focus:ring-2 focus:ring-primary-500 outline-none appearance-none pr-10 cursor-pointer shadow-xl"
+                        >
+                            <option value="">SELECT PIPELINE (ALL)</option>
+                            {pipelines.map(p => (
+                                <option key={p.id} value={p.id}>{p.name.toUpperCase()}</option>
+                            ))}
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                            <Activity size={14} />
+                        </div>
+                    </div>
+
+                    <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl shadow-inner border border-white/5">
+                        <button
+                            onClick={() => setMode('live')}
+                            className={`flex items-center space-x-2 px-6 py-2 rounded-xl text-xs font-black transition-all ${mode === 'live' ? 'bg-white dark:bg-gray-700 shadow-xl text-primary-500' : 'text-gray-400 hover:text-gray-500'}`}
+                        >
+                            <Activity size={14} />
+                            <span>LIVE IOT FEED</span>
+                        </button>
+                        <button
+                            onClick={() => setMode('upload')}
+                            className={`flex items-center space-x-2 px-6 py-2 rounded-xl text-xs font-black transition-all ${mode === 'upload' ? 'bg-white dark:bg-gray-700 shadow-xl text-primary-500' : 'text-gray-400 hover:text-gray-500'}`}
+                        >
+                            <Upload size={14} />
+                            <span>LAB REPORT IMPORT</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -189,9 +235,8 @@ const WaterQualityIntelligence = () => {
                 <div className="space-y-8">
                     {/* Live Overview Grid */}
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                        {liveSensors.length > 0 && (() => {
-                            const first = liveSensors[0];
-                            const analysis = analyzeQuality(first);
+                        {(() => {
+                            const analysis = analyzeQuality(aggregateData);
                             return (
                                 <>
                                     <div className={`lg:col-span-1 p-6 rounded-3xl border ${analysis.border} ${analysis.bg} flex flex-col justify-between relative overflow-hidden group min-h-[160px]`}>
@@ -208,8 +253,8 @@ const WaterQualityIntelligence = () => {
                                         </div>
                                     </div>
                                     {renderMetricCard('Mineral Profiling', analysis.mineralLabel, '', Info, analysis.textColor)}
-                                    {renderMetricCard('Chemical Clarity', first.turbidity?.toFixed(2) || '0.0', 'NTU', RefreshCw, 'text-amber-500')}
-                                    {renderMetricCard('Current pH', first.ph?.toFixed(1) || '0.0', 'pH', FlaskConical, 'text-blue-500')}
+                                    {renderMetricCard('Chemical Clarity', aggregateData.turbidity?.toFixed(2) || '0.00', 'NTU', RefreshCw, 'text-amber-500')}
+                                    {renderMetricCard('Current pH', aggregateData.ph?.toFixed(2) || '0.00', 'pH', FlaskConical, 'text-blue-500')}
                                 </>
                             )
                         })()}
@@ -221,7 +266,7 @@ const WaterQualityIntelligence = () => {
                             <h3 className="text-sm font-black dark:text-white uppercase tracking-widest">Clinical Insight Engine</h3>
                         </div>
                         <p className="text-lg font-bold dark:text-gray-200 tracking-tight leading-snug">
-                            {analyzeQuality(liveSensors[0] || {}).explanation}. The node exhibits {analyzeQuality(liveSensors[0] || {}).mineralLabel.toLowerCase()} levels, making the water {analyzeQuality(liveSensors[0] || {}).drinkable ? 'fully compliant with drinking standards' : 'suitable for localized industrial or washing utilities only'}.
+                            {analyzeQuality(aggregateData).explanation}. This {selectedPipelineId ? 'pipeline' : 'sector'} exhibits {analyzeQuality(aggregateData).mineralLabel.toLowerCase()} levels, making the water {analyzeQuality(aggregateData).drinkable ? 'fully compliant with drinking standards' : 'suitable for localized industrial or washing utilities only'}.
                         </p>
                     </div>
 
@@ -243,19 +288,20 @@ const WaterQualityIntelligence = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y dark:divide-gray-700">
-                                    {liveSensors.map(sensor => {
+                                    {filteredSensors.map(sensor => {
                                         const q = analyzeQuality(sensor);
                                         return (
                                             <tr key={sensor.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-all">
                                                 <td className="p-6">
                                                     <span className="font-black text-sm dark:text-white uppercase tracking-tighter">{sensor.name}</span>
+                                                    <p className="text-[8px] text-gray-400 font-bold uppercase mt-0.5">{sensor.pipeline_name || 'Independent Node'}</p>
                                                 </td>
                                                 <td className="p-6 text-sm font-bold dark:text-gray-400">{sensor.ph?.toFixed(2)}</td>
-                                                <td className="p-6 text-sm font-bold dark:text-gray-400">{sensor.tds} mg/L</td>
-                                                <td className="p-6 text-sm font-bold dark:text-gray-400">{sensor.turbidity} NTU</td>
+                                                <td className="p-6 text-sm font-bold dark:text-gray-400">{sensor.tds?.toFixed(2)} mg/L</td>
+                                                <td className="p-6 text-sm font-bold dark:text-gray-400">{sensor.turbidity?.toFixed(2)} NTU</td>
                                                 <td className="p-6">
-                                                    <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${q.bg} ${q.color} ${q.border}`}>
-                                                        {q.status} Quality
+                                                    <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${q.bg} ${q.textColor} ${q.border}`}>
+                                                        {q.status}
                                                     </span>
                                                 </td>
                                             </tr>
