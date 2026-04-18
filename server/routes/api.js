@@ -143,7 +143,7 @@ router.get('/analytics/:sensorId', async (req, res) => {
 // --- Complaints ---
 router.post('/complaint/add', async (req, res) => {
     let { user_id, pipeline_id, type, description, location, priority, lat, lng, symptoms, image } = req.body;
-    
+
     // Ensure symptoms is stored as a JSON string for SQLite TEXT column
     const symptomsStr = Array.isArray(symptoms) ? JSON.stringify(symptoms) : (symptoms || '[]');
 
@@ -611,6 +611,59 @@ router.get('/ai/actions/:sensorId', async (req, res) => {
         }
 
         res.json(filteredActions);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// --- Search Functionality ---
+router.get('/search', async (req, res) => {
+    const { q } = req.query;
+    if (!q) return res.json([]);
+
+    try {
+        const query = `%${q}%`;
+
+        // Search sensors
+        const sensors = await db.query(
+            'SELECT id, name, location, lat, lng FROM sensors WHERE name LIKE ? OR location LIKE ? LIMIT 10',
+            [query, query]
+        );
+        const sensorResults = sensors.map(s => ({
+            id: s.id,
+            name: s.name,
+            location: s.location,
+            type: 'sensor',
+            lat: s.lat,
+            lng: s.lng
+        }));
+
+        // Search pipelines
+        const pipelines = await db.query(
+            'SELECT id, name, start_location, end_location, coordinates FROM pipelines WHERE name LIKE ? LIMIT 10',
+            [query]
+        );
+        const pipelineResults = pipelines.map(p => {
+            let lat = 0, lng = 0;
+            try {
+                const coords = typeof p.coordinates === 'string' ? JSON.parse(p.coordinates || '[]') : (p.coordinates || []);
+                if (coords.length > 0) {
+                    lat = coords.reduce((acc, c) => acc + c[0], 0) / coords.length;
+                    lng = coords.reduce((acc, c) => acc + c[1], 0) / coords.length;
+                }
+            } catch (e) { /* Fallback handled below */ }
+
+            return {
+                id: p.id,
+                name: p.name,
+                location: `${p.start_location} → ${p.end_location}`,
+                type: 'pipeline',
+                lat: lat || 12.9716,
+                lng: lng || 77.5946
+            };
+        });
+
+        res.json([...sensorResults, ...pipelineResults]);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

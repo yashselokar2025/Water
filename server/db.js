@@ -153,57 +153,6 @@ const initDB = async () => {
         CREATE INDEX IF NOT EXISTS idx_alerts_unresolved ON alerts (is_resolved) WHERE is_resolved = 0;
     `);
 
-    // Seed Users if empty (admin/admin123, user/user123)
-    const userCount = await db.get('SELECT COUNT(*) as count FROM users');
-    if (userCount.count === 0) {
-        const bcrypt = require('bcryptjs');
-        const adminPass = await bcrypt.hash('admin123', 10);
-        const userPass = await bcrypt.hash('user123', 10);
-        await db.run('INSERT INTO users (username, password, role, phone, pipeline_id) VALUES (?, ?, ?, ?, ?)', ['admin', adminPass, 'admin', '+15550199', 1]);
-        await db.run('INSERT INTO users (username, password, role, phone, pipeline_id) VALUES (?, ?, ?, ?, ?)', ['user', userPass, 'citizen', '+15550200', 2]);
-    }
-
-    // Seed Data if empty
-    const pipelineCount = await db.get('SELECT COUNT(*) as count FROM pipelines');
-    if (pipelineCount.count === 0) {
-        await db.exec(`
-            INSERT INTO pipelines (name, start_location, end_location) VALUES
-            ('Main Trunk A', 'Inlet Station', 'East Reservoir'),
-            ('Distribution Line B', 'East Reservoir', 'Green Valley Substation'),
-            ('Hilltop Feed Line', 'Pump House 2', 'Hilltop Tank');
-        `);
-    }
-
-    const villageCount = await db.get('SELECT COUNT(*) as count FROM villages');
-    if (villageCount.count === 0) {
-        await db.exec(`
-            INSERT INTO villages (name, population, health_cases, risk_level, water_quality) VALUES
-            ('Green Valley', 1200, 2, 'Low', 'Good'),
-            ('Riverside', 850, 15, 'Medium', 'Fair'),
-            ('Hilltop', 500, 1, 'Low', 'Good'),
-            ('Marshland', 1100, 30, 'High', 'Poor');
-
-            INSERT INTO sensors (name, location, lat, lng, status, village_id, pipeline_id) VALUES
-            ('Node 001 - Main Inlet', 'Green Valley Entrance', 12.9716, 77.5946, 'Active', 1, 1),
-            ('Node 002 - East Pipeline', 'Riverside Road', 12.9720, 77.5950, 'Active', 2, 2),
-            ('Node 003 - Hill Station', 'Hilltop Peak', 12.9700, 77.5930, 'Active', 3, 3),
-            ('Node 004 - Swamp Monitor', 'Marshland Center', 12.9730, 77.5960, 'Warning', 4, 1);
-        `);
-    }
-
-    const complaintCount = await db.get('SELECT COUNT(*) as count FROM complaints');
-    if (complaintCount.count === 0) {
-        await db.exec(`
-            INSERT INTO complaints (type, description, location, priority, status, pipeline_id) VALUES
-            ('Dirty Water', 'Water is brown and smells bad', 'Green Valley', 'High', 'Pending', 1),
-            ('Dirty Water', 'Slightly yellow water', 'Green Valley', 'Medium', 'Pending', 1),
-            ('Low Pressure', 'No enough pressure for shower', 'Riverside', 'Medium', 'Pending', 2),
-            ('Leakage', 'Water leaking from main road pipe', 'Hilltop Peak', 'High', 'Pending', 3),
-            ('No Supply', 'No water since morning', 'Main Inlet', 'High', 'Pending', 1),
-            ('Bad Smell', 'Water smells like sulfur', 'Green Valley', 'Medium', 'Pending', 1);
-        `);
-    }
-
     console.log('SQLite Database initialized');
     return db;
 };

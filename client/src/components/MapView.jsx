@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents,
 import { useNavigate, useLocation } from 'react-router-dom';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { Search, MapPin, Navigation, Info, Crosshair, PenTool, Filter, Eye, EyeOff, BarChart3, AlertCircle, ChevronRight, Activity, X } from 'lucide-react';
+import { Search, MapPin, Navigation, Info, Crosshair, PenTool, Filter, Eye, EyeOff, BarChart3, AlertCircle, ChevronRight, Activity, X, RefreshCcw } from 'lucide-react';
 import axios from 'axios';
 
 // Fix for default leaflet icons
@@ -58,37 +58,52 @@ const MapView = ({ sensors, pipelines, isAdmin, onCoordinateSelect, drawingMode,
         return sensors.filter(s => String(s.pipeline_id) === String(filterPipelineId));
     }, [sensors, filterPipelineId]);
 
+    const API_BASE = 'http://localhost:5000/api';
+
+    const [isSearching, setIsSearching] = useState(false);
+
     const handleSearch = async (e) => {
         const query = e.target.value;
         setSearchQuery(query);
         if (query.length > 2) {
-            try {
-                const localRes = await axios.get(`http://localhost:5000/api/search?q=${query}`);
-                let results = localRes.data;
-                if (results.length < 3) {
-                    const globalRes = await axios.get(`https://nominatim.openstreetmap.org/search?format=json&q=${query}`);
-                    const globalItems = globalRes.data.map(item => ({
-                        id: item.place_id,
-                        name: item.display_name,
-                        type: 'location',
-                        lat: item.lat,
-                        lng: item.lon
-                    }));
-                    results = [...results, ...globalItems];
-                }
-                setSearchResults(results);
-                setShowResults(true);
-            } catch (err) { console.error(err); }
+            performSearch(query);
         } else {
             setSearchResults([]);
             setShowResults(false);
         }
     };
 
+    const performSearch = async (query) => {
+        setIsSearching(true);
+        try {
+            const localRes = await axios.get(`${API_BASE}/search?q=${query}`);
+            let results = localRes.data;
+            if (results.length < 3) {
+                const globalRes = await axios.get(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&countrycodes=in`);
+                const globalItems = globalRes.data.map(item => ({
+                    id: item.place_id,
+                    name: item.display_name,
+                    type: 'location',
+                    lat: item.lat,
+                    lng: item.lon,
+                    location: 'Global Location'
+                }));
+                results = [...results, ...globalItems];
+            }
+            setSearchResults(results);
+            setShowResults(true);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsSearching(false);
+        }
+    };
+
     const focusOn = (item) => {
         if (!item) return;
         let lat = 0, lng = 0;
-        if (item.type === 'sensor' || item.type === 'location') {
+
+        if (item.lat && item.lng) {
             lat = parseFloat(item.lat);
             lng = parseFloat(item.lng);
         } else if (item.type === 'pipeline') {
@@ -102,9 +117,13 @@ const MapView = ({ sensors, pipelines, isAdmin, onCoordinateSelect, drawingMode,
                     }
                 } catch (e) { lat = 12.9716; lng = 77.5946; }
             } else { lat = 12.9716; lng = 77.5946; }
+        } else {
+            lat = 12.9716; lng = 77.5946;
         }
+
         const zoomLevel = item.type === 'location' ? 12 : 17;
         setMapFocus({ center: [lat, lng], zoom: zoomLevel });
+
         if (item.type !== 'location') {
             setHighlightId({ id: item.id, type: item.type });
             setTimeout(() => setHighlightId(null), 5000);
@@ -113,9 +132,13 @@ const MapView = ({ sensors, pipelines, isAdmin, onCoordinateSelect, drawingMode,
         setSearchQuery(item.name.split(',')[0]);
     };
 
-    const triggerSearch = () => {
-        if (searchResults.length > 0) {
-            focusOn(searchResults[0]);
+    const triggerSearch = async () => {
+        if (searchQuery.length > 2) {
+            if (searchResults.length > 0) {
+                focusOn(searchResults[0]);
+            } else {
+                await performSearch(searchQuery);
+            }
         }
     };
 
@@ -147,13 +170,13 @@ const MapView = ({ sensors, pipelines, isAdmin, onCoordinateSelect, drawingMode,
     return (
         <div className="h-full glass-card overflow-hidden flex flex-col animate-in fade-in duration-500 relative">
             {/* Floating Search Hub - Positioned Top-Left but offset from map controls */}
-            <div className="absolute top-6 left-16 z-[1000] w-full max-w-sm hidden md:block">
+            <div className="absolute top-6 left-16 z-[1000] w-full max-w-sm block">
                 <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 rounded-2xl shadow-2xl flex items-center p-2 group transition-all focus-within:ring-4 focus-within:ring-primary-500/10">
                     <button
                         onClick={triggerSearch}
-                        className="p-3 bg-primary-500 text-white rounded-xl shadow-lg shadow-primary-500/20 mr-2 hover:bg-primary-600 transition-colors active:scale-95"
+                        className={`p-3 text-white rounded-xl shadow-lg transition-colors active:scale-95 ${isSearching ? 'bg-primary-400' : 'bg-primary-500 hover:bg-primary-600 shadow-primary-500/20'}`}
                     >
-                        <Search size={20} />
+                        {isSearching ? <RefreshCcw size={20} className="animate-spin" /> : <Search size={20} />}
                     </button>
                     <input
                         value={searchQuery}
@@ -164,24 +187,39 @@ const MapView = ({ sensors, pipelines, isAdmin, onCoordinateSelect, drawingMode,
                     />
                 </div>
 
-                {showResults && searchResults.length > 0 && (
+                {showResults && (
                     <div className="absolute top-full mt-3 w-full bg-white/95 dark:bg-gray-900/95 backdrop-blur-2xl border border-white/20 dark:border-gray-700/50 rounded-2xl shadow-2xl overflow-hidden max-h-[400px] overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-300">
-                        {searchResults.map((item, i) => (
-                            <button
-                                key={i}
-                                onClick={() => focusOn(item)}
-                                className="w-full flex items-center p-4 hover:bg-primary-500/10 transition-colors text-left border-b border-gray-100 dark:border-gray-800 last:border-0"
-                            >
-                                <div className={`p-2 rounded-lg mr-3 shadow-inner ${item.type === 'sensor' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'}`}>
-                                    {item.type === 'sensor' ? <Activity size={16} /> : <Navigation size={16} />}
+                        {searchResults.length > 0 ? (
+                            searchResults.map((item, i) => (
+                                <button
+                                    key={i}
+                                    onClick={() => focusOn(item)}
+                                    className="w-full flex items-center p-4 hover:bg-primary-500/10 transition-colors text-left border-b border-gray-100 dark:border-gray-800 last:border-0"
+                                >
+                                    <div className={`p-2 rounded-lg mr-3 shadow-inner ${item.type === 'sensor' ? 'bg-emerald-100 text-emerald-600' : (item.type === 'pipeline' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600')}`}>
+                                        {item.type === 'sensor' ? <Activity size={16} /> : (item.type === 'pipeline' ? <Navigation size={16} /> : <MapPin size={16} />)}
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-black dark:text-white uppercase tracking-tighter">{item.name}</p>
+                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{item.location}</p>
+                                    </div>
+                                    <ChevronRight className="ml-auto text-gray-300" size={16} />
+                                </button>
+                            ))
+                        ) : (
+                            !isSearching && (
+                                <div className="p-8 text-center">
+                                    <Info size={32} className="mx-auto text-gray-300 mb-2" />
+                                    <p className="text-xs font-black text-gray-400 uppercase tracking-widest">No infrastructure or location matches found</p>
                                 </div>
-                                <div>
-                                    <p className="text-xs font-black dark:text-white uppercase tracking-tighter">{item.name}</p>
-                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{item.location}</p>
-                                </div>
-                                <ChevronRight className="ml-auto text-gray-300" size={16} />
-                            </button>
-                        ))}
+                            )
+                        )}
+                        {isSearching && searchResults.length === 0 && (
+                            <div className="p-8 text-center">
+                                <RefreshCcw size={32} className="mx-auto text-primary-500 mb-2 animate-spin" />
+                                <p className="text-xs font-black text-primary-500 uppercase tracking-widest">Broadcasting Search Query...</p>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -211,11 +249,14 @@ const MapView = ({ sensors, pipelines, isAdmin, onCoordinateSelect, drawingMode,
                     </div>
                 </div>
             )}
-
-
-
             <div className="flex-1 z-0 relative">
-                <MapContainer center={mapFocus.center} zoom={mapFocus.zoom} style={{ height: '100%', width: '100%' }}>
+                <MapContainer
+                    center={mapFocus.center}
+                    zoom={mapFocus.zoom}
+                    maxBounds={[[6.746, 68.032], [35.513, 97.402]]}
+                    maxBoundsViscosity={0.8}
+                    style={{ height: '100%', width: '100%' }}
+                >
                     <ChangeView center={mapFocus.center} zoom={mapFocus.zoom} />
                     <MapEvents onMapClick={onCoordinateSelect} drawingMode={drawingMode} />
                     <TileLayer

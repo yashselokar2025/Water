@@ -169,6 +169,10 @@ const SimulationHub = ({ sensors, fetchData }) => {
         return sensors.filter(s => String(s.pipeline_id) === String(pipeId));
     }, [sensors, targetPipeline, newSensor.pipeline_id]);
 
+    // Search/Filter States
+    const [inventorySearch, setInventorySearch] = useState('');
+    const [scenarioSearch, setScenarioSearch] = useState('');
+
     const InputField = ({ label, name, icon: Icon, unit }) => (
         <div className="space-y-1">
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{label}</label>
@@ -185,6 +189,18 @@ const SimulationHub = ({ sensors, fetchData }) => {
             </div>
         </div>
     );
+
+    const filteredPipelines = useMemo(() => {
+        return pipelines.filter(p =>
+            p.name.toLowerCase().includes(inventorySearch.toLowerCase()) ||
+            p.start_location.toLowerCase().includes(inventorySearch.toLowerCase()) ||
+            p.end_location.toLowerCase().includes(inventorySearch.toLowerCase())
+        );
+    }, [pipelines, inventorySearch]);
+
+    const scenarioPipelines = useMemo(() => {
+        return pipelines.filter(p => p.name.toLowerCase().includes(scenarioSearch.toLowerCase()));
+    }, [pipelines, scenarioSearch]);
 
     return (
         <div className="max-w-[1600px] mx-auto h-[calc(100vh-12rem)] flex flex-col space-y-6 animate-in fade-in duration-700">
@@ -327,11 +343,22 @@ const SimulationHub = ({ sensors, fetchData }) => {
 
                                 {/* Infrastructure List & Deletion */}
                                 <div className="space-y-4">
-                                    <h3 className="text-xs font-black dark:text-white uppercase tracking-widest flex items-center gap-2">
-                                        <Database size={16} className="text-gray-400" /> Infrastructure Inventory
-                                    </h3>
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-xs font-black dark:text-white uppercase tracking-widest flex items-center gap-2">
+                                            <Database size={16} className="text-gray-400" /> Infrastructure Inventory
+                                        </h3>
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                placeholder="Search..."
+                                                value={inventorySearch}
+                                                onChange={(e) => setInventorySearch(e.target.value)}
+                                                className="bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-white/5 px-3 py-1 rounded-lg text-[10px] font-bold outline-none focus:border-primary-500/50"
+                                            />
+                                        </div>
+                                    </div>
                                     <div className="space-y-3">
-                                        {pipelines.map(pipe => (
+                                        {filteredPipelines.map(pipe => (
                                             <div key={pipe.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/20 border border-gray-100 dark:border-white/5 rounded-2xl group transition-all hover:border-primary-500/30">
                                                 <div className="flex items-center gap-3">
                                                     <div className="p-2 bg-white dark:bg-gray-700 rounded-lg text-primary-500 border border-gray-100 dark:border-gray-600">
@@ -348,6 +375,11 @@ const SimulationHub = ({ sensors, fetchData }) => {
                                                 </div>
                                             </div>
                                         ))}
+                                        {filteredPipelines.length === 0 && (
+                                            <div className="text-center py-8 text-gray-500 text-[10px] font-black uppercase tracking-widest border-2 border-dashed border-gray-100 dark:border-white/5 rounded-2xl">
+                                                No matches found
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -357,16 +389,25 @@ const SimulationHub = ({ sensors, fetchData }) => {
                         {activeTab === 'scenarios' && (
                             <div className="space-y-10 animate-in slide-in-from-right-4 duration-500">
                                 <div className="space-y-6">
-                                    <div className="flex items-center gap-3">
-                                        <Target className="text-primary-500" size={18} />
-                                        <h3 className="text-xs font-black dark:text-white uppercase tracking-widest">Target Configuration</h3>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <Target className="text-primary-500" size={18} />
+                                            <h3 className="text-xs font-black dark:text-white uppercase tracking-widest">Target Configuration</h3>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder="Quick Find..."
+                                            value={scenarioSearch}
+                                            onChange={(e) => setScenarioSearch(e.target.value)}
+                                            className="bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-white/5 px-3 py-1 rounded-lg text-[10px] font-bold outline-none focus:border-primary-500/50"
+                                        />
                                     </div>
                                     <div className="grid grid-cols-1 gap-4">
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Infrastructure Focus</label>
                                             <select value={targetPipeline} onChange={e => { setTargetPipeline(e.target.value); setTargetSensor(''); }} className="w-full bg-gray-50 dark:bg-gray-800 border-2 border-gray-100 dark:border-white/5 p-4 rounded-xl text-xs font-bold dark:text-white outline-none cursor-pointer">
                                                 <option value="">Global Network</option>
-                                                {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                                {scenarioPipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                             </select>
                                         </div>
                                         <div className="space-y-1">
