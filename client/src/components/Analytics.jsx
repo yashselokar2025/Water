@@ -176,31 +176,33 @@ const Analytics = ({ sensors: propsSensors, pipelines = [], selectedPipelineId, 
                             </div>
                         </div>
 
-                        <div className="flex-1">
-                            <ResponsiveContainer width="100%" height={380}>
-                                <LineChart data={data}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} />
-                                    <XAxis dataKey="time" stroke="#9ca3af" tick={{ fontSize: 10, fontWeight: 800 }} axisLine={false} />
-                                    <YAxis stroke="#9ca3af" tick={{ fontSize: 10, fontWeight: 800 }} axisLine={false} tickLine={false} />
-                                    <Tooltip
-                                        content={({ active, payload }) => {
-                                            if (active && payload && payload.length) {
-                                                const item = payload[0].payload;
-                                                return (
-                                                    <div className="bg-gray-900 border border-white/10 p-4 rounded-2xl shadow-2xl backdrop-blur-xl">
-                                                        <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">{item.time}</p>
-                                                        <p className="text-lg font-black text-white">{payload[0].value.toFixed(2)} {currentMetric.unit}</p>
-                                                        {item.isForecast && <p className="text-[8px] text-amber-500 font-black mt-2">AI PREDICTION</p>}
-                                                    </div>
-                                                );
-                                            }
-                                            return null;
-                                        }}
-                                    />
-                                    <ReferenceLine y={currentMetric.threshold} stroke={currentMetric.color} strokeDasharray="3 3" strokeOpacity={0.5} />
-                                    <Line type="monotone" dataKey={metric} stroke={currentMetric.color} strokeWidth={4} dot={{ r: 4, fill: '#fff' }} animationDuration={500} isAnimationActive={false} />
-                                </LineChart>
-                            </ResponsiveContainer>
+                        <div className="flex-1" style={{ position: 'relative', width: '100%', minHeight: '380px' }}>
+                            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={data}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} />
+                                        <XAxis dataKey="time" stroke="#9ca3af" tick={{ fontSize: 10, fontWeight: 800 }} axisLine={false} />
+                                        <YAxis stroke="#9ca3af" tick={{ fontSize: 10, fontWeight: 800 }} axisLine={false} tickLine={false} />
+                                        <Tooltip
+                                            content={({ active, payload }) => {
+                                                if (active && payload && payload.length) {
+                                                    const item = payload[0].payload;
+                                                    return (
+                                                        <div className="bg-gray-900 border border-white/10 p-4 rounded-2xl shadow-2xl backdrop-blur-xl">
+                                                            <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">{item.time}</p>
+                                                            <p className="text-lg font-black text-white">{payload[0].value.toFixed(2)} {currentMetric.unit}</p>
+                                                            {item.isForecast && <p className="text-[8px] text-amber-500 font-black mt-2">AI PREDICTION</p>}
+                                                        </div>
+                                                    );
+                                                }
+                                                return null;
+                                            }}
+                                        />
+                                        <ReferenceLine y={currentMetric.threshold} stroke={currentMetric.color} strokeDasharray="3 3" strokeOpacity={0.5} />
+                                        <Line type="monotone" dataKey={metric} stroke={currentMetric.color} strokeWidth={4} dot={{ r: 4, fill: '#fff' }} animationDuration={500} isAnimationActive={false} />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
                         </div>
                     </div>
 

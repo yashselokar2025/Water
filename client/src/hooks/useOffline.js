@@ -62,8 +62,8 @@ const useOffline = (fetchDataCallback) => {
 
     const bufferComplaint = (complaint) => {
         const complaints = JSON.parse(localStorage.getItem('offline_complaints') || '[]');
-        complaints.push({ ...complaint, offline: true, timestamp: new Date().toISOString() });
-        localStorage.setItem('offline_complaints', JSON.stringify(complaints));
+        const updatedComplaints = [...complaints, { ...complaint, offline: true, timestamp: new Date().toISOString() }];
+        localStorage.setItem('offline_complaints', JSON.stringify(updatedComplaints));
         updatePendingCount();
     };
 

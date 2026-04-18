@@ -35,6 +35,7 @@ import PrioritySystem from './components/PrioritySystem';
 import Auth from './components/Auth';
 import PipelineDetail from './components/PipelineDetail';
 import useOffline from './hooks/useOffline';
+import { detectSensorAnomaly, generateAIInsight, mergeInsightQueue } from './utils/aiEngine';
 
 const API_BASE = 'http://localhost:5000/api';
 
@@ -49,6 +50,12 @@ function App() {
   const [alerts, setAlerts] = useState(JSON.parse(localStorage.getItem('cached_alerts') || '[]'));
   const [smsLogs, setSmsLogs] = useState([]);
   const [isAlertHistoryOpen, setIsAlertHistoryOpen] = useState(false);
+
+  // ── AI Decision Engine shared state ────────────────────────────────────────
+  // aiInsights: structured insight objects shown in Dashboard AI Queue
+  const [aiInsights, setAiInsights] = useState([]);
+  // anomalyPersistence: { [sensorId-eventType]: cycleCount } for temporal validation
+  const anomalyPersistenceRef = React.useRef({});
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -125,21 +132,53 @@ function App() {
 
   const [lastAlertTime, setLastAlertTime] = useState({}); // Tracking { 'sensor-id-type': timestamp }
 
-  // --- Real-time Alert Engine ---
+  // ── AI Decision Engine: runs on every sensor data update ─────────────────
   useEffect(() => {
-    const newAlerts = [];
+    if (!sensors || sensors.length === 0) return;
+
     const now = Date.now();
-    const THROTTLE_MS = 5 * 60 * 1000; // 5 minutes
+    const THROTTLE_MS = 5 * 60 * 1000;
+    const CYCLES_REQUIRED = 2;  // separate for leak and contamination
+    const persistence = anomalyPersistenceRef.current;
+
+    const newAlerts = [];
+    const newInsightsBatch = [];
 
     sensors.forEach(sensor => {
-      // Leak Detection (🚨)
-      if (sensor.leakScore > 75) {
+      const neighbors = sensors.filter(
+        s => String(s.pipeline_id) === String(sensor.pipeline_id) && s.id !== sensor.id
+      );
+
+      // ── Run fully separated detection ────────────────────────────────
+      const { leakScore, contaminationLevel } = detectSensorAnomaly(sensor, neighbors);
+
+      // ── SEPARATE temporal tracking ───────────────────────────────────
+      const leakKey   = `${sensor.id}-LEAK`;
+      const contamKey = `${sensor.id}-CONTAMINATION`;
+
+      if (leakScore >= 35)            persistence[leakKey]   = (persistence[leakKey]   || 0) + 1;
+      else                            delete persistence[leakKey];
+
+      if (contaminationLevel >= 60)   persistence[contamKey] = (persistence[contamKey] || 0) + 1;
+      else                            delete persistence[contamKey];
+
+      const leakCycles   = persistence[leakKey]   || 0;
+      const contamCycles = persistence[contamKey] || 0;
+
+      // ── Generate insight ─────────────────────────────────────────────
+      if (leakCycles >= CYCLES_REQUIRED || contamCycles >= CYCLES_REQUIRED) {
+        const insight = generateAIInsight(sensor, neighbors, leakCycles, contamCycles);
+        if (insight) newInsightsBatch.push(insight); // This array is local to this render cycle, it's safe to mutate locally before setting state.
+      }
+
+      // ── Toast alerts ─────────────────────────────────────────────────
+      if (leakScore > 70) {
         const alertKey = `leak-${sensor.id}`;
         if (!lastAlertTime[alertKey] || now - lastAlertTime[alertKey] > THROTTLE_MS) {
           newAlerts.push({
             id: `${alertKey}-${now}`,
             type: 'leak',
-            severity: sensor.leakScore > 90 ? 'High' : 'Medium',
+            severity: leakScore > 90 ? 'High' : 'Medium',
             message: `🚨 Leak Detected at ${sensor.name}`,
             location: sensor.location,
             pipelineId: sensor.pipeline_id,
@@ -148,15 +187,14 @@ function App() {
           setLastAlertTime(prev => ({ ...prev, [alertKey]: now }));
         }
       }
-      // Contamination Detection (⚠️)
-      if (sensor.turbidity > 5.0 || sensor.tds > 500) {
+      if (contaminationLevel >= 60) {
         const alertKey = `contam-${sensor.id}`;
         if (!lastAlertTime[alertKey] || now - lastAlertTime[alertKey] > THROTTLE_MS) {
           newAlerts.push({
             id: `${alertKey}-${now}`,
             type: 'contamination',
             severity: 'High',
-            message: `⚠️ Water Contamination at ${sensor.name}`,
+            message: `⚠️ Contamination Detected at ${sensor.name}`,
             location: sensor.location,
             pipelineId: sensor.pipeline_id,
             timestamp: new Date().toLocaleTimeString()
@@ -166,6 +204,10 @@ function App() {
       }
     });
 
+    // ── Update AI insight queue ──────────────────────────────────────────
+    setAiInsights(prev => mergeInsightQueue(prev, newInsightsBatch));
+
+    // ── Update toast alerts ───────────────────────────────────────────────
     if (newAlerts.length > 0) {
       setAlerts(prev => {
         const uniqueNew = newAlerts.filter(na => !prev.some(pa => pa.message === na.message));
@@ -177,7 +219,7 @@ function App() {
         return prev;
       });
     }
-  }, [sensors, lastAlertTime]);
+  }, [sensors]);
 
   const handleLogin = (userData) => {
     setUser(userData);
@@ -351,16 +393,16 @@ function App() {
             )}
 
             <Routes>
-              <Route path="/" element={<Dashboard kpis={kpis} sensors={sensors} pipelines={pipelines} lastUpdated={lastUpdated} />} />
+              <Route path="/" element={<Dashboard kpis={kpis} sensors={sensors} pipelines={pipelines} lastUpdated={lastUpdated} aiInsights={aiInsights} />} />
               <Route path="/map" element={<MapView sensors={sensors} pipelines={pipelines} isAdmin={isAdmin} fetchData={fetchData} filterPipelineId={selectedPipelineId} onFilterChange={setSelectedPipelineId} />} />
-              <Route path="/simulation-hub" element={isAdmin ? <SimulationHub sensors={sensors} fetchData={fetchData} /> : <Dashboard kpis={kpis} />} />
+              <Route path="/simulation-hub" element={isAdmin ? <SimulationHub sensors={sensors} fetchData={fetchData} /> : <Dashboard kpis={kpis} aiInsights={aiInsights} />} />
               <Route path="/analytics" element={<Analytics sensors={sensors} pipelines={pipelines} selectedPipelineId={selectedPipelineId} onPipelineChange={setSelectedPipelineId} />} />
               <Route path="/water-quality" element={<WaterQuality liveSensors={sensors} pipelines={pipelines} selectedPipelineId={selectedPipelineId} onPipelineChange={setSelectedPipelineId} />} />
               <Route path="/health" element={<HealthData />} />
               <Route path="/complaints" element={<Complaints />} />
-              <Route path="/leaks" element={isAdmin ? <LeakDetection /> : <Dashboard kpis={kpis} />} />
-              <Route path="/risks" element={isAdmin ? <OutbreakRisk /> : <Dashboard kpis={kpis} />} />
-              <Route path="/priority" element={isAdmin ? <PrioritySystem /> : <Dashboard kpis={kpis} />} />
+              <Route path="/leaks" element={isAdmin ? <LeakDetection sensors={sensors} /> : <Dashboard kpis={kpis} aiInsights={aiInsights} />} />
+              <Route path="/risks" element={isAdmin ? <OutbreakRisk /> : <Dashboard kpis={kpis} aiInsights={aiInsights} />} />
+              <Route path="/priority" element={isAdmin ? <PrioritySystem /> : <Dashboard kpis={kpis} aiInsights={aiInsights} />} />
               <Route path="/pipeline/:id" element={<PipelineDetail sensors={sensors} pipelines={pipelines} />} />
             </Routes>
           </div>

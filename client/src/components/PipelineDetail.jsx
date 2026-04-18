@@ -156,22 +156,24 @@ const PipelineDetail = () => {
                             </div>
                         </div>
                     </div>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <AreaChart data={flowData}>
-                            <defs>
-                                <linearGradient id="colorFlow" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3} />
-                                    <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" opacity={0.1} />
-                            <XAxis dataKey="time" stroke="#9ca3af" fontSize={10} fontWeight="bold" />
-                            <YAxis stroke="#9ca3af" fontSize={10} fontWeight="bold" />
-                            <Tooltip contentStyle={{ backgroundColor: '#111827', border: 'none', borderRadius: '16px' }} />
-                            <Area type="monotone" dataKey="flow" stroke="#0ea5e9" strokeWidth={4} fillOpacity={1} fill="url(#colorFlow)" />
-                            <Area type="monotone" dataKey="pressure" stroke="#6366f1" strokeWidth={2} fill="transparent" strokeDasharray="5 5" />
-                        </AreaChart>
-                    </ResponsiveContainer>
+                    <div style={{ width: '100%', height: '300px' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={flowData}>
+                                <defs>
+                                    <linearGradient id="colorFlow" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" opacity={0.1} />
+                                <XAxis dataKey="time" stroke="#9ca3af" fontSize={10} fontWeight="bold" />
+                                <YAxis stroke="#9ca3af" fontSize={10} fontWeight="bold" />
+                                <Tooltip contentStyle={{ backgroundColor: '#111827', border: 'none', borderRadius: '16px' }} />
+                                <Area type="monotone" dataKey="flow" stroke="#0ea5e9" strokeWidth={4} fillOpacity={1} fill="url(#colorFlow)" />
+                                <Area type="monotone" dataKey="pressure" stroke="#6366f1" strokeWidth={2} fill="transparent" strokeDasharray="5 5" />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    </div>
                 </div>
 
                 {/* Node Health Decomposition */}

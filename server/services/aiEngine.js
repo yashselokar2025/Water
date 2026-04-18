@@ -5,81 +5,103 @@ const waterQuality = require('./waterQualityService');
  * AI Engine Service - 6 Layer Decision Support
  */
 const aiEngine = {
-    // --- LAYER 1: DETECTION (Graph + Threshold) ---
+    // --- LAYER 1: DETECTION (Normalized, Averaged, False-Positive-Safe) ---
     detectAnomalies: (sensor, neighbors = [], history = []) => {
         const insights = [];
         let isAnomaly = false;
 
-        // 1. Sudden Pressure Drop (∆P)
-        let pressureDropScore = 0;
+        // ── Normalisation constants ────────────────────────────────────────────
+        const MAX_PRESSURE_DROP  = 2.0;   // bar  – max realistic single-cycle drop
+        const MAX_FLOW_CHANGE    = 15.0;  // L/s  – max realistic flow surge
+        const MAX_NEIGHBOR_DIFF  = 1.5;   // bar  – max expected neighbour deviation
+        const MIN_SIGNAL         = 0.15;  // below this each score is treated as noise
+
+        // 1. Sudden Pressure Drop (normalised 0–1)
+        let pressureScore = 0;
+        let pressureDrop  = 0;
         if (history.length >= 1) {
             const prev = history[0];
-            const drop = Math.max(0, prev.pressure - sensor.pressure);
-            // Heightened sensitivity: a 1.5 bar drop should be nearly 100% leak probability
-            if (drop > 0.4) {
-                pressureDropScore = Math.min(100, drop * 60);
-                insights.push(`Significant Pressure Drop: ${drop.toFixed(2)} bar detected vs previous`);
+            pressureDrop = Math.max(0, (prev.pressure || 0) - (sensor.pressure || 0));
+            pressureScore = Math.min(1, pressureDrop / MAX_PRESSURE_DROP);
+            if (pressureScore >= MIN_SIGNAL) {
+                insights.push(`Pressure drop: ${pressureDrop.toFixed(2)} bar vs previous reading`);
             }
         }
 
-        // 2. Flow Anomaly (∆F)
-        let flowAnomalyScore = 0;
+        // 2. Flow Anomaly (normalised 0–1)
+        let flowScore   = 0;
+        let flowChange  = 0;
         if (history.length >= 1) {
             const prev = history[0];
-            const flowDev = Math.abs(sensor.flow - prev.flow);
-            if (flowDev > 4) {
-                flowAnomalyScore = Math.min(100, flowDev * 15);
-                insights.push(`Flow Anomaly: Surge of ${flowDev.toFixed(1)} L/s detected`);
+            flowChange = Math.max(0, (sensor.flow || 0) - (prev.flow || 0)); // only upward surge
+            flowScore  = Math.min(1, flowChange / MAX_FLOW_CHANGE);
+            if (flowScore >= MIN_SIGNAL) {
+                insights.push(`Flow surge: +${flowChange.toFixed(1)} L/s above previous reading`);
             }
         }
 
-        // 3. Graph-Based Neighbor Comparison (Neighbor_Diff)
-        let neighborDiffScore = 0;
+        // 3. Neighbour comparison (normalised 0–1)
+        let neighborScore    = 0;
+        let neighborAvg      = 0;
+        let neighborDeviation = 0;
         if (neighbors.length > 0) {
-            const avgPressure = neighbors.reduce((acc, n) => acc + (n.pressure || 0), 0) / neighbors.length;
-            const deviation = Math.abs(sensor.pressure - avgPressure);
-            const deviationPercent = (deviation / (avgPressure || 1)) * 100;
-
-            if (deviationPercent > 10) {
-                neighborDiffScore = Math.min(deviationPercent * 2, 100);
-                insights.push(`Infrastructure Drift: ${deviationPercent.toFixed(1)}% deviation from pipeline baseline`);
+            const validNeighbors = neighbors.filter(n => n.pressure > 0);
+            if (validNeighbors.length > 0) {
+                neighborAvg  = validNeighbors.reduce((a, n) => a + n.pressure, 0) / validNeighbors.length;
+                // Only score when THIS sensor is LOWER than neighbours (not just different)
+                neighborDeviation = Math.max(0, neighborAvg - (sensor.pressure || 0));
+                neighborScore = Math.min(1, neighborDeviation / MAX_NEIGHBOR_DIFF);
+                if (neighborScore >= MIN_SIGNAL) {
+                    insights.push(`Neighbour avg: ${neighborAvg.toFixed(2)} bar vs current ${(sensor.pressure || 0).toFixed(2)} bar (diff: ${neighborDeviation.toFixed(2)} bar)`);
+                }
             }
         }
 
-        // 4. Absolute Threshold Check (Critical failure states)
-        if (sensor.pressure < 1.5) {
-            insights.push(`Critical Pressure Failure: ${sensor.pressure.toFixed(2)} bar is dangerously low`);
-            isAnomaly = true;
+        // 4. Absolute limit overrides (only for extreme values)
+        let absoluteBoost = 0;
+        if ((sensor.pressure || 0) > 0 && (sensor.pressure || 0) < 1.2) {
+            absoluteBoost = 0.85; // critically low pressure
+            insights.push(`Critical pressure: ${(sensor.pressure || 0).toFixed(2)} bar`);
         }
-        if (sensor.flow > 30) {
-            insights.push(`Excessive Flow Volume: ${sensor.flow.toFixed(1)} L/s detected`);
-            isAnomaly = true;
+        if ((sensor.flow || 0) > 32) {
+            absoluteBoost = Math.max(absoluteBoost, 0.80);
+            insights.push(`Excessive flow: ${(sensor.flow || 0).toFixed(1)} L/s`);
         }
 
-        // Final Leak Score Calculation (Weighted)
-        let leakScore = Math.max(pressureDropScore, flowAnomalyScore, neighborDiffScore);
-
-        // Boost score if absolute thresholds are breached
-        if (sensor.pressure < 1.5) leakScore = Math.max(leakScore, 85);
-        if (sensor.flow > 30) leakScore = Math.max(leakScore, 80);
+        // ── AVERAGED formula (no single metric drives 100%) ───────────────────
+        // Guard: if all three signals are below noise threshold, score = 0
+        const activeScores = [pressureScore, flowScore, neighborScore].filter(s => s >= MIN_SIGNAL);
+        let leakScore = 0;
+        if (activeScores.length > 0) {
+            // Average of normalised scores → prevents single-metric dominance
+            const avg = activeScores.reduce((a, b) => a + b, 0) / activeScores.length;
+            leakScore = Math.round(Math.min(100, Math.max(absoluteBoost, avg) * 100));
+        } else if (absoluteBoost > 0) {
+            leakScore = Math.round(absoluteBoost * 100);
+        }
+        // Else leakScore stays 0 — no signal, no alarm
 
         if (leakScore > 40) isAnomaly = true;
 
-        // Clinical Quality Check (Clinical Layer)
+        // ── Quality check (does NOT inflate leakScore) ────────────────────────
         const health = waterQuality.classify(sensor.ph, sensor.tds, sensor.turbidity);
-        if (health.isToxic) {
-            isAnomaly = true;
-        }
-
-        insights.push(...health.explanation.split('. '));
+        if (health.isToxic) isAnomaly = true;
 
         return {
             isAnomaly,
             leakScore,
+            pressureScore:    Math.round(pressureScore * 100),
+            flowScore:        Math.round(flowScore * 100),
+            neighborScore:    Math.round(neighborScore * 100),
+            pressureDrop:     parseFloat(pressureDrop.toFixed(2)),
+            flowChange:       parseFloat(flowChange.toFixed(1)),
+            neighborAvg:      parseFloat(neighborAvg.toFixed(2)),
+            neighborDeviation: parseFloat(neighborDeviation.toFixed(2)),
             detectionInsights: insights,
-            health: health
+            health
         };
     },
+
 
     // --- LAYER 2: PREDICTION & FORECASTING (Enriched Trend Analysis) ---
     getAdvancedAnalytics: (sensor, history = []) => {
