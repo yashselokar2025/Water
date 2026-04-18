@@ -150,7 +150,18 @@ router.post('/complaint/add', async (req, res) => {
     try {
         await db.execute(
             'INSERT INTO complaints (user_id, pipeline_id, type, description, location, priority, lat, lng, symptoms, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [user_id, pipeline_id, type, description, location, priority || 'Low', lat, lng, symptomsStr, image]
+            [
+                user_id === "" ? null : user_id, 
+                pipeline_id === "" || pipeline_id === "all" ? null : pipeline_id, 
+                type, 
+                description, 
+                location, 
+                priority || 'Low', 
+                lat === "" ? null : lat, 
+                lng === "" ? null : lng, 
+                symptomsStr, 
+                image
+            ]
         );
         res.json({ success: true });
     } catch (error) {
@@ -204,9 +215,11 @@ router.post('/health', async (req, res) => {
     try {
         await db.execute(
             'INSERT INTO health_data (name, contact, symptoms, village_id) VALUES (?, ?, ?, ?)',
-            [name, contact, symptoms, village_id]
+            [name, contact, symptoms, village_id === "" ? null : village_id]
         );
-        await db.execute('UPDATE villages SET health_cases = health_cases + 1 WHERE id = ?', [village_id]);
+        if (village_id && village_id !== "") {
+            await db.execute('UPDATE villages SET health_cases = health_cases + 1 WHERE id = ?', [village_id]);
+        }
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -504,7 +517,7 @@ router.post('/sensors', async (req, res) => {
     try {
         await db.execute(
             'INSERT INTO sensors (name, location, lat, lng, pipeline_id) VALUES (?, ?, ?, ?, ?)',
-            [name, location, lat, lng, pipeline_id]
+            [name, location, lat, lng, pipeline_id || null]
         );
         res.json({ success: true, message: 'Sensor added successfully' });
     } catch (error) {
