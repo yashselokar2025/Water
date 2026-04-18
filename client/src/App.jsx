@@ -43,7 +43,7 @@ const API_BASE = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api
 function App() {
   const { language, toggleLanguage, t } = useLanguage();
   const [user, setUser] = useState(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
   const [darkMode, setDarkMode] = useState(true);
   const [sensors, setSensors] = useState([]);
   const [pipelines, setPipelines] = useState([]);
@@ -303,12 +303,20 @@ function App() {
           ))}
         </div>
 
+        {/* Mobile Backdrop Overlay */}
+        {isSidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm transition-opacity"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+
         {/* Sidebar */}
-        <aside className={`${isSidebarOpen ? 'w-64' : 'w-20'} bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 flex flex-col z-50`}>
+        <aside className={`fixed md:relative top-0 left-0 h-full z-50 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 flex flex-col ${isSidebarOpen ? 'translate-x-0 w-64 shadow-2xl md:shadow-none' : '-translate-x-full w-64 md:translate-x-0 md:w-20'}`}>
           <div className="p-4 flex items-center justify-between">
-            {isSidebarOpen && <h1 className="text-xl font-bold bg-gradient-to-r from-primary-400 to-blue-600 bg-clip-text text-transparent">SmartWater AI</h1>}
+            <h1 className={`text-xl font-bold bg-gradient-to-r from-primary-400 to-blue-600 bg-clip-text text-transparent md:block ${!isSidebarOpen && 'hidden'}`}>SmartWater AI</h1>
             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-              {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+              {isSidebarOpen ? <X size={20} /> : <div className="hidden md:block"><Menu size={20} /></div>}
             </button>
           </div>
 
@@ -338,10 +346,13 @@ function App() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 flex flex-col h-screen overflow-hidden">
-          <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-8 z-40">
-            <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-2 bg-emerald-500/5 px-4 py-2 rounded-2xl border border-emerald-500/10">
+        <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
+          <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-4 sm:px-8 z-30">
+            <div className="flex items-center space-x-3 sm:space-x-6">
+              <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 rounded-lg md:hidden hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white transition-colors">
+                <Menu size={20} />
+              </button>
+              <div className="hidden sm:flex items-center space-x-2 bg-emerald-500/5 px-4 py-2 rounded-2xl border border-emerald-500/10">
                 <Activity className="text-emerald-500" size={18} />
                 <span className="font-black text-[10px] text-emerald-500 uppercase tracking-widest">Live Flow</span>
                 <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span>
@@ -376,7 +387,7 @@ function App() {
             </div>
           </header>
 
-          <div className="flex-1 overflow-y-auto p-8 relative">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-8 relative">
             {/* Alert History Panel */}
             {isAlertHistoryOpen && (
               <div className="absolute top-0 right-8 w-80 bg-white dark:bg-gray-800 rounded-b-3xl shadow-2xl border-x border-b border-gray-100 dark:border-gray-700 z-[45] p-6 animate-in slide-in-from-top-4 duration-300 max-h-[70vh] overflow-y-auto">
