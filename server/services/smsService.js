@@ -1,4 +1,4 @@
-const { getDB } = require('../db');
+const dbConfig = require('../db');
 
 /**
  * SmartWater SMS Service
@@ -9,7 +9,6 @@ const COOLDOWN_MINUTES = 10;
 const lastSent = new Map(); // Store key: "userId_type", value: timestamp
 
 const sendSMS = async (userId, phone, message, type) => {
-    const db = getDB();
     const key = `${userId}_${type}`;
     const now = Date.now();
 
@@ -30,7 +29,7 @@ const sendSMS = async (userId, phone, message, type) => {
         console.log("-----------------------------------------");
 
         // 3. Log to Database
-        await db.run(
+        await dbConfig.execute(
             'INSERT INTO sms_logs (user_id, type, message, phone, status) VALUES (?, ?, ?, ?, ?)',
             [userId, type, message, phone, 'Sent']
         );
@@ -46,10 +45,9 @@ const sendSMS = async (userId, phone, message, type) => {
 };
 
 const notifyAffectedUsers = async (pipelineId, message, type) => {
-    const db = getDB();
     try {
         // Find users mapped to this pipeline with a phone number
-        const users = await db.all(
+        const users = await dbConfig.query(
             'SELECT id, phone FROM users WHERE pipeline_id = ? AND phone IS NOT NULL',
             [pipelineId]
         );

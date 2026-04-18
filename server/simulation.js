@@ -9,11 +9,11 @@ let simulationState = {
 
 const simulateReadings = async () => {
     try {
-        const _db = db.getDB();
-        const sensors = await _db.all('SELECT id FROM sensors');
+        const sensors = await db.query('SELECT id FROM sensors');
         for (const sensor of sensors) {
             // Check for overrides
-            const override = await _db.get('SELECT * FROM sensor_overrides WHERE sensor_id = ? AND is_active = 1', [sensor.id]);
+            const queries = await db.query('SELECT * FROM sensor_overrides WHERE sensor_id = ? AND is_active = 1', [sensor.id]);
+            const override = queries[0];
 
             let pressure, flow, ph, turbidity, tds;
 
@@ -34,7 +34,7 @@ const simulateReadings = async () => {
                 tds = 250 + (Math.random() - 0.5) * 50;
             }
 
-            await _db.run(
+            await db.execute(
                 'INSERT INTO sensor_readings (sensor_id, pressure, flow, ph, turbidity, tds) VALUES (?, ?, ?, ?, ?, ?)',
                 [sensor.id, pressure, flow, ph, turbidity, tds]
             );
@@ -43,12 +43,14 @@ const simulateReadings = async () => {
             if (pressure < 2.5 || ph < 6.8 || ph > 8.2 || turbidity > 3 || tds > 400) status = 'Warning';
             if (pressure < 1.5 || turbidity > 8 || ph > 9.2 || ph < 5.8 || tds > 800) status = 'Critical';
 
-            await _db.run('UPDATE sensors SET status = ? WHERE id = ?', [status, sensor.id]);
+            await db.execute('UPDATE sensors SET status = ? WHERE id = ?', [status, sensor.id]);
 
             // --- SMS ALERT TRIGGER LOGIC ---
             if (status === 'Critical') {
-                const sensorData = await _db.get('SELECT name, pipeline_id FROM sensors WHERE id = ?', [sensor.id]);
-                const pipeData = await _db.get('SELECT name FROM pipelines WHERE id = ?', [sensorData.pipeline_id]);
+                const sensorDataRes = await db.query('SELECT name, pipeline_id FROM sensors WHERE id = ?', [sensor.id]);
+                const sensorData = sensorDataRes[0];
+                const pipeDataRes = await db.query('SELECT name FROM pipelines WHERE id = ?', [sensorData.pipeline_id]);
+                const pipeData = pipeDataRes[0];
 
                 let smsType = 'Leak Alert';
                 let message = `🚨 LEAK ALERT | ${pipeData?.name || 'Network Segment'}\nHigh pressure drop detected at ${sensorData.name}\nAction: Inspect immediately`;
