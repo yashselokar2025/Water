@@ -32,7 +32,7 @@ const useOffline = (fetchDataCallback) => {
     };
 
     const syncOfflineData = async () => {
-        const complaints = JSON.parse(localStorage.getItem('offline_complaints') || '[]');
+        let complaints = JSON.parse(localStorage.getItem('offline_complaints') || '[]');
         const alerts = JSON.parse(localStorage.getItem('offline_alerts') || '[]');
 
         if (complaints.length === 0 && alerts.length === 0) return;
@@ -40,14 +40,19 @@ const useOffline = (fetchDataCallback) => {
         console.log(`Syncing ${complaints.length} complaints and ${alerts.length} alerts...`);
 
         try {
-            // Sync Complaints
+            // Sync Complaints individually to ensure we clear only successfully synced ones
+            const remainingComplaints = [];
             for (const complaint of complaints) {
-                await axios.post('http://localhost:5000/api/complaints', complaint);
+                try {
+                    await axios.post('http://localhost:5000/api/complaint/add', complaint);
+                } catch (e) {
+                    console.error("Individual complaint sync failed:", e);
+                    remainingComplaints.push(complaint);
+                }
             }
-            localStorage.setItem('offline_complaints', '[]');
+            localStorage.setItem('offline_complaints', JSON.stringify(remainingComplaints));
 
             // Sync Alerts (If backend support exists, otherwise just clear)
-            // Note: Alerts are typically generated server-side, but if generated client-side while offline:
             localStorage.setItem('offline_alerts', '[]');
 
             updatePendingCount();
@@ -56,7 +61,7 @@ const useOffline = (fetchDataCallback) => {
             setLastSyncTime(new Date().toISOString());
             localStorage.setItem('last_sync_time', new Date().toISOString());
         } catch (err) {
-            console.error("Sync failed:", err);
+            console.error("Sync batch failed:", err);
         }
     };
 

@@ -74,9 +74,15 @@ const initDB = async () => {
             type TEXT NOT NULL,
             description TEXT,
             location TEXT,
+            lat REAL,
+            lng REAL,
             priority TEXT DEFAULT 'Low',
             status TEXT DEFAULT 'Pending',
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            pipeline_id INTEGER,
+            user_id INTEGER,
+            FOREIGN KEY (pipeline_id) REFERENCES pipelines(id),
+            FOREIGN KEY (user_id) REFERENCES users(id)
         );
 
         CREATE TABLE IF NOT EXISTS health_data (
@@ -133,6 +139,13 @@ const initDB = async () => {
     try { await db.run('ALTER TABLE users ADD COLUMN pipeline_id INTEGER'); } catch (e) { }
     try { await db.run('ALTER TABLE users ADD COLUMN full_name TEXT'); } catch (e) { }
     try { await db.run('ALTER TABLE users ADD COLUMN email TEXT'); } catch (e) { }
+    try { await db.run('ALTER TABLE users ADD COLUMN profile_picture TEXT'); } catch (e) { }
+    try { await db.run('ALTER TABLE complaints ADD COLUMN pipeline_id INTEGER'); } catch (e) { }
+    try { await db.run('ALTER TABLE complaints ADD COLUMN user_id INTEGER'); } catch (e) { }
+    try { await db.run('ALTER TABLE complaints ADD COLUMN lat REAL'); } catch (e) { }
+    try { await db.run('ALTER TABLE complaints ADD COLUMN lng REAL'); } catch (e) { }
+    try { await db.run('ALTER TABLE complaints ADD COLUMN symptoms TEXT'); } catch (e) { }
+    try { await db.run('ALTER TABLE complaints ADD COLUMN image TEXT'); } catch (e) { }
 
     // Create Indexes for Performance
     await db.exec(`
@@ -175,6 +188,19 @@ const initDB = async () => {
             ('Node 002 - East Pipeline', 'Riverside Road', 12.9720, 77.5950, 'Active', 2, 2),
             ('Node 003 - Hill Station', 'Hilltop Peak', 12.9700, 77.5930, 'Active', 3, 3),
             ('Node 004 - Swamp Monitor', 'Marshland Center', 12.9730, 77.5960, 'Warning', 4, 1);
+        `);
+    }
+
+    const complaintCount = await db.get('SELECT COUNT(*) as count FROM complaints');
+    if (complaintCount.count === 0) {
+        await db.exec(`
+            INSERT INTO complaints (type, description, location, priority, status, pipeline_id) VALUES
+            ('Dirty Water', 'Water is brown and smells bad', 'Green Valley', 'High', 'Pending', 1),
+            ('Dirty Water', 'Slightly yellow water', 'Green Valley', 'Medium', 'Pending', 1),
+            ('Low Pressure', 'No enough pressure for shower', 'Riverside', 'Medium', 'Pending', 2),
+            ('Leakage', 'Water leaking from main road pipe', 'Hilltop Peak', 'High', 'Pending', 3),
+            ('No Supply', 'No water since morning', 'Main Inlet', 'High', 'Pending', 1),
+            ('Bad Smell', 'Water smells like sulfur', 'Green Valley', 'Medium', 'Pending', 1);
         `);
     }
 

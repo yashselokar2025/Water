@@ -141,15 +141,59 @@ router.get('/analytics/:sensorId', async (req, res) => {
 });
 
 // --- Complaints ---
-router.post('/complaints', async (req, res) => {
-    const { type, description, location, priority } = req.body;
+router.post('/complaint/add', async (req, res) => {
+    let { user_id, pipeline_id, type, description, location, priority, lat, lng, symptoms, image } = req.body;
+    
+    // Ensure symptoms is stored as a JSON string for SQLite TEXT column
+    const symptomsStr = Array.isArray(symptoms) ? JSON.stringify(symptoms) : (symptoms || '[]');
+
     try {
         await db.execute(
-            'INSERT INTO complaints (type, description, location, priority) VALUES (?, ?, ?, ?)',
-            [type, description, location, priority]
+            'INSERT INTO complaints (user_id, pipeline_id, type, description, location, priority, lat, lng, symptoms, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [user_id, pipeline_id, type, description, location, priority || 'Low', lat, lng, symptomsStr, image]
         );
         res.json({ success: true });
     } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.get('/complaint/all', async (req, res) => {
+    try {
+        const complaints = await db.query(`
+            SELECT c.*, p.name as pipeline_name, u.username as user_name 
+            FROM complaints c 
+            LEFT JOIN pipelines p ON c.pipeline_id = p.id
+            LEFT JOIN users u ON c.user_id = u.id
+            ORDER BY c.created_at DESC
+        `);
+        res.json(complaints);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.put('/complaint/status/:id', async (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+    console.log(`[API] Updating status for complaint ${id} to ${status}`);
+    try {
+        await db.execute('UPDATE complaints SET status = ? WHERE id = ?', [status, id]);
+        res.json({ success: true });
+    } catch (error) {
+        console.error(`[API ERROR] Update status failed: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.delete('/complaint/:id', async (req, res) => {
+    const { id } = req.params;
+    console.log(`[API] Deleting complaint ${id}`);
+    try {
+        await db.execute('DELETE FROM complaints WHERE id = ?', [id]);
+        res.json({ success: true });
+    } catch (error) {
+        console.error(`[API ERROR] Delete failed: ${error.message}`);
         res.status(500).json({ error: error.message });
     }
 });
@@ -219,46 +263,93 @@ router.get('/ai/leak-detection', async (req, res) => {
     }
 });
 
-// --- AI Logic: Outbreak Risk ---
+// --- AI Logic: Outbreak Risk (Trend Analysis Overhaul) ---
 router.get('/ai/outbreak-risk', async (req, res) => {
     try {
-        const villages = await db.query('SELECT * FROM villages');
+        const pipelines = await db.query('SELECT * FROM pipelines');
         const risks = [];
 
-        for (const village of villages) {
-            // Formula: riskScore = (water_quality + health_cases + complaints)
-
-            // 1. Water Quality Component (0-100)
-            const water_quality_score = village.water_quality === 'Poor' ? 100 : (village.water_quality === 'Fair' ? 50 : 10);
-
-            // 2. Health Data Component (Normalized to 100)
-            const health_score = Math.min(100, (village.health_cases / 10) * 100);
-
-            // 3. Complaints Component (Normalized to 100)
-            const complaints = await db.query(
-                'SELECT COUNT(*) as count FROM complaints WHERE location LIKE ? AND status != "Resolved"',
-                [`%${village.name}%`]
+        for (const pipeline of pipelines) {
+            // 1. Current Window (last 10 minutes)
+            const currentRes = await db.query(
+                `SELECT COUNT(*) as count FROM complaints 
+                 WHERE pipeline_id = ? AND created_at >= datetime('now', '-10 minutes')`,
+                [pipeline.id]
             );
-            const complaint_score = Math.min(100, complaints[0].count * 20);
+            const currentCount = currentRes[0]?.count || 0;
 
-            // Aggregated Risk Score
-            const risk_score = (water_quality_score + health_score + complaint_score) / 3;
+            // 2. Previous Window (10-20 minutes ago)
+            const previousRes = await db.query(
+                `SELECT COUNT(*) as count FROM complaints 
+                 WHERE pipeline_id = ? AND created_at >= datetime('now', '-20 minutes') 
+                 AND created_at < datetime('now', '-10 minutes')`,
+                [pipeline.id]
+            );
+            const previousCount = previousRes[0]?.count || 0;
 
+            // 3. Top Issue Type
+            const topIssueRes = await db.query(
+                `SELECT type, COUNT(*) as count FROM complaints 
+                 WHERE pipeline_id = ? AND created_at >= datetime('now', '-10 minutes')
+                 GROUP BY type ORDER BY count DESC LIMIT 1`,
+                [pipeline.id]
+            );
+            const topIssue = topIssueRes[0]?.type || 'N/A';
+
+            // 3b. Total Complaints (Lifetime)
+            const totalRes = await db.query(
+                'SELECT COUNT(*) as count FROM complaints WHERE pipeline_id = ?',
+                [pipeline.id]
+            );
+            const totalCount = totalRes[0]?.count || 0;
+
+            // 4. Trend Calculation
+            let trend = 'STABLE';
+            let trendIcon = '➖';
+            if (currentCount > previousCount) {
+                trend = 'INCREASING';
+                trendIcon = '📈';
+            } else if (currentCount < previousCount && currentCount > 0) {
+                trend = 'DECREASING';
+                trendIcon = '📉';
+            } else if (currentCount === 0 && previousCount > 0) {
+                trend = 'DECREASING';
+                trendIcon = '📉';
+            }
+
+            // 5. Risk Calculation
             let level = 'Low';
-            if (risk_score > 30) level = 'Medium';
-            if (risk_score > 60) level = 'High';
+            let riskScore = 20;
+            if (currentCount > 3 && trend === 'INCREASING') {
+                level = 'High';
+                riskScore = 85;
+            } else if (currentCount > 0 || trend === 'STABLE') {
+                level = 'Medium';
+                riskScore = 50;
+            }
 
-            let explanation = `Consolidated risk is ${level}. Water Factor: ${water_quality_score}%, Health Factor: ${Math.round(health_score)}%, Community Complaints: ${complaint_score}%`;
+            // 6. AI Insight
+            let insight = 'Stable parameters detected in this sector.';
+            if (trend === 'INCREASING') insight = `Rapid spike in ${topIssue} reports suggests immediate network breach.`;
+            else if (trend === 'STABLE' && currentCount > 0) insight = `Persistent ${topIssue} incidents indicate recurring structural weakness.`;
+            else if (trend === 'DECREASING') insight = `Clustered ${topIssue} issues are subsiding; localized containment successful.`;
 
             risks.push({
-                villageId: village.id,
-                villageName: village.name,
-                riskScore: Math.round(risk_score),
+                pipelineId: pipeline.id,
+                pipelineName: pipeline.name,
+                riskScore,
+                currentCount,
+                previousCount,
+                totalCount,
+                trend,
+                trendIcon,
                 level,
-                explanation
+                topIssue,
+                insight,
+                alertTriggered: level === 'High' && trend === 'INCREASING'
             });
         }
-        res.json(risks);
+        res.json(risks.sort((a, b) => b.riskScore - a.riskScore));
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

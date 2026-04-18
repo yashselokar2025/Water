@@ -43,7 +43,43 @@ router.post('/login', async (req, res) => {
         }
 
         const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '1h' });
-        res.json({ token, role: user.role, username: user.username });
+        res.json({ 
+            token, 
+            role: user.role, 
+            username: user.username,
+            fullName: user.full_name,
+            email: user.email,
+            phone: user.phone,
+            profilePicture: user.profile_picture,
+            pipelineId: user.pipeline_id
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get Current User Profile
+router.get('/me/:username', async (req, res) => {
+    try {
+        const _db = db.getDB();
+        const user = await _db.get('SELECT username, role, full_name as fullName, email, phone, profile_picture as profilePicture, pipeline_id as pipelineId FROM users WHERE username = ?', [req.params.username]);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Update Profile
+router.post('/profile/update', async (req, res) => {
+    const { username, fullName, email, phone, profilePicture } = req.body;
+    try {
+        const _db = db.getDB();
+        await _db.run(
+            'UPDATE users SET full_name = ?, email = ?, phone = ?, profile_picture = ? WHERE username = ?',
+            [fullName, email, phone, profilePicture, username]
+        );
+        res.json({ success: true, message: 'Profile updated successfully' });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

@@ -108,7 +108,7 @@ const AIInsights = () => {
                     <div className="flex items-center justify-between px-2">
                         <div className="flex items-center space-x-3">
                             <ListFilter className="text-primary-500" size={20} />
-                            <h3 className="text-sm font-black dark:text-white uppercase tracking-widest">Priority Maintenance Ranking</h3>
+                            <h3 className="text-sm font-black dark:text-white uppercase tracking-widest">Smart Asset Allocation</h3>
                         </div>
                         <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Score Weighted by Impact</span>
                     </div>

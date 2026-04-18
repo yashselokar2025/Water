@@ -76,8 +76,23 @@ const Auth = ({ onLogin }) => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4 font-sans">
-            <div className="max-w-md w-full glass-card p-10 space-y-8 animate-in zoom-in-95 duration-500 border border-white/20">
+        <div className="relative min-h-screen flex items-center justify-center p-4 font-sans overflow-hidden">
+            {/* Background Video Layer */}
+            <video 
+                autoPlay 
+                muted 
+                loop 
+                playsInline 
+                className="absolute top-0 left-0 w-full h-full object-cover z-0"
+            >
+                <source src="/login-bg.mp4" type="video/mp4" />
+                Your browser does not support the video tag.
+            </video>
+
+            {/* Premium Dark Overlay */}
+            <div className="absolute top-0 left-0 w-full h-full bg-black/40 dark:bg-black/60 backdrop-blur-[2px] z-10" />
+
+            <div className="relative z-20 max-w-md w-full glass-card p-10 space-y-8 animate-in zoom-in-95 duration-500 border border-white/20">
                 <div className="text-center">
                     <div className="mx-auto h-16 w-16 bg-primary-500 text-white rounded-2xl flex items-center justify-center shadow-xl mb-4 transform rotate-3 hover:rotate-0 transition-transform">
                         {isRegister ? <UserPlus size={32} /> : <ShieldCheck size={32} />}

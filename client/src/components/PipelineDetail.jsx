@@ -35,23 +35,31 @@ const PipelineDetail = () => {
     const [sensors, setSensors] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    const [analytics, setAnalytics] = useState([]);
+
+    const fetchDetail = async () => {
+        try {
+            const res = await axios.get('http://localhost:5000/api/pipelines');
+            const pipe = res.data.find(p => String(p.id) === String(id));
+            setPipeline(pipe);
+
+            const sensorRes = await axios.get('http://localhost:5000/api/sensors');
+            setSensors(sensorRes.data.filter(s => String(s.pipeline_id) === String(id)));
+
+            const analyticsRes = await axios.get(`http://localhost:5000/api/analytics/pipeline/${id}`);
+            setAnalytics(analyticsRes.data);
+
+            setLoading(false);
+        } catch (err) {
+            console.error(err);
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const fetchDetail = async () => {
-            try {
-                const res = await axios.get('http://localhost:5000/api/pipelines');
-                const pipe = res.data.find(p => String(p.id) === String(id));
-                setPipeline(pipe);
-
-                const sensorRes = await axios.get('http://localhost:5000/api/sensors');
-                setSensors(sensorRes.data.filter(s => String(s.pipeline_id) === String(id)));
-
-                setLoading(false);
-            } catch (err) {
-                console.error(err);
-                setLoading(false);
-            }
-        };
         fetchDetail();
+        const interval = setInterval(fetchDetail, 5000);
+        return () => clearInterval(interval);
     }, [id]);
 
     if (loading) return (
@@ -69,21 +77,30 @@ const PipelineDetail = () => {
         </div>
     );
 
+    const avgPressure = sensors.length > 0 
+        ? (sensors.reduce((acc, s) => acc + s.pressure, 0) / sensors.length).toFixed(1)
+        : '0.0';
+    
+    const maxRisk = sensors.length > 0 
+        ? Math.max(...sensors.map(s => s.leakScore || 0))
+        : 0;
+
+    const integrityLevel = maxRisk > 70 ? 'Critical' : (maxRisk > 30 ? 'Warning' : 'High');
+    const integrityColor = maxRisk > 70 ? 'text-red-500' : (maxRisk > 30 ? 'text-amber-500' : 'text-indigo-500');
+
     const stats = [
-        { label: 'Flow Consistency', value: '98.2%', icon: Waves, color: 'text-blue-500' },
-        { label: 'Pressure Avg', value: '4.2 bar', icon: Activity, color: 'text-emerald-500' },
-        { label: 'Integrity Index', value: 'High', icon: ShieldCheck, color: 'text-indigo-500' },
+        { label: 'Flow Consistency', value: maxRisk > 50 ? 'Low' : '98.2%', icon: Waves, color: 'text-blue-500' },
+        { label: 'Pressure Avg', value: `${avgPressure} bar`, icon: Activity, color: 'text-emerald-500' },
+        { label: 'Integrity Index', value: integrityLevel, icon: ShieldCheck, color: integrityColor },
         { label: 'Active Sensors', value: sensors.length, icon: Navigation, color: 'text-primary-500' },
     ];
 
-    const flowData = [
-        { time: '00:00', flow: 120, pressure: 4.1 },
-        { time: '04:00', flow: 140, pressure: 4.3 },
-        { time: '08:00', flow: 210, pressure: 4.8 },
-        { time: '12:00', flow: 180, pressure: 4.5 },
-        { time: '16:00', flow: 230, pressure: 5.0 },
-        { time: '20:00', flow: 160, pressure: 4.2 },
-        { time: '23:59', flow: 130, pressure: 4.0 },
+    const flowData = analytics.length > 0 ? analytics.map(a => ({
+        time: a.time,
+        flow: a.flow,
+        pressure: a.pressure
+    })) : [
+        { time: 'N/A', flow: 0, pressure: 0 }
     ];
 
     return (
@@ -100,7 +117,12 @@ const PipelineDetail = () => {
                     <div>
                         <div className="flex items-center space-x-3 mb-1">
                             <h2 className="text-3xl font-black dark:text-white tracking-tighter uppercase">{pipeline.name}</h2>
-                            <span className="px-3 py-1 bg-green-500/10 text-green-500 text-[10px] font-black uppercase tracking-widest rounded-lg border border-green-500/20">Operational</span>
+                            <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg border ${
+                                maxRisk > 70 ? 'bg-red-500/10 text-red-500 border-red-500/20' : 
+                                (maxRisk > 30 ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-green-500/10 text-green-500 border-green-500/20')
+                            }`}>
+                                {maxRisk > 70 ? 'CRITICAL ALERT' : (maxRisk > 30 ? 'UNSTABLE' : 'OPERATIONAL')}
+                            </span>
                         </div>
                         <p className="text-gray-500 font-bold text-sm tracking-widest uppercase">{pipeline.start_location} → {pipeline.end_location}</p>
                     </div>
@@ -157,7 +179,7 @@ const PipelineDetail = () => {
                         </div>
                     </div>
                     <div style={{ width: '100%', height: '300px' }}>
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height={300}>
                             <AreaChart data={flowData}>
                                 <defs>
                                     <linearGradient id="colorFlow" x1="0" y1="0" x2="0" y2="1">
@@ -186,12 +208,14 @@ const PipelineDetail = () => {
                             <div key={sensor.id} className="group">
                                 <div className="flex justify-between items-center mb-2">
                                     <span className="font-black text-xs dark:text-gray-200 uppercase tracking-tighter">{sensor.name}</span>
-                                    <span className="text-[10px] font-black text-primary-500">{(sensor.pressure * 20).toFixed(0)}% OPTIMAL</span>
+                                    <span className={`text-[10px] font-black ${sensor.leakScore > 70 ? 'text-red-500' : (sensor.leakScore > 30 ? 'text-amber-500' : 'text-primary-500')}`}>
+                                        {sensor.leakScore > 70 ? 'LEAK DETECTED' : (sensor.leakScore > 30 ? 'DEVIATION DETECTED' : 'OPTIMAL')}
+                                    </span>
                                 </div>
                                 <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                                     <div
-                                        className="h-full bg-primary-500 rounded-full group-hover:bg-primary-400 transition-all"
-                                        style={{ width: `${(sensor.pressure * 20)}%` }}
+                                        className={`h-full rounded-full transition-all ${sensor.leakScore > 70 ? 'bg-red-500' : (sensor.leakScore > 30 ? 'bg-amber-500 animate-pulse' : 'bg-primary-500')}`}
+                                        style={{ width: `${Math.max(10, 100 - (sensor.leakScore || 0))}%` }}
                                     ></div>
                                 </div>
                             </div>
@@ -247,34 +271,34 @@ const PipelineDetail = () => {
                                     <td className="p-6">
                                         <div className="flex flex-col space-y-1 max-w-[180px]">
                                             <div className="flex justify-between text-[9px] font-black uppercase text-gray-400">
-                                                <span>Forecast</span>
-                                                <span className={sensor.trend === 'Dropping' ? 'text-red-500' : 'text-primary-500'}>{sensor.trend}</span>
+                                                <span>Diagnosis</span>
+                                                <span className={sensor.leakScore > 70 ? 'text-red-500' : 'text-primary-500'}>{sensor.leakScore > 70 ? 'ANOMALY' : 'NORMAL'}</span>
                                             </div>
                                             <p className="text-[10px] font-bold dark:text-gray-300 leading-tight">
-                                                {sensor.forecast}
+                                                {sensor.anomalyReason || 'Sensor environment operating within baseline parameters.'}
                                             </p>
                                         </div>
                                     </td>
                                     <td className="p-6">
                                         <div className="flex flex-col space-y-2">
-                                            {sensor.recommendations?.slice(0, 2).map((rec, i) => (
-                                                <div key={i} className="flex items-start space-x-1">
-                                                    <div className="w-1 h-1 rounded-full bg-primary-500 mt-1.5"></div>
-                                                    <span className="text-[10px] font-bold dark:text-gray-400 leading-none">{rec}</span>
-                                                </div>
-                                            ))}
-                                            <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase w-fit ${sensor.riskLevel === 'High' ? 'bg-red-500 text-white' :
+                                            <div className="flex items-start space-x-1">
+                                                <div className="w-1 h-1 rounded-full bg-primary-500 mt-1.5"></div>
+                                                <span className="text-[10px] font-bold dark:text-gray-400 leading-none">
+                                                    {sensor.leakScore > 70 ? 'IMMEDIATE SITE INSPECTION' : 'CONTINUE MONITORING'}
+                                                </span>
+                                            </div>
+                                            <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase w-fit ${sensor.riskLevel === 'High' ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' :
                                                 (sensor.riskLevel === 'Medium' ? 'bg-amber-500 text-white' : 'bg-emerald-500 text-white')
                                                 }`}>
-                                                {sensor.riskLevel} STRISK
+                                                {sensor.riskLevel || 'LOW'} RISK
                                             </span>
                                         </div>
                                     </td>
                                     <td className="p-6 text-right">
                                         <div className="flex flex-col items-end">
-                                            <span className={`text-[10px] font-black uppercase tracking-widest mb-1 ${sensor.decision?.includes('IMMEDIATE') ? 'text-red-500 animate-pulse' : 'text-primary-500'
+                                            <span className={`text-[10px] font-black uppercase tracking-widest mb-1 ${sensor.leakScore > 70 ? 'text-red-500 animate-pulse' : 'text-primary-500'
                                                 }`}>
-                                                {sensor.decision}
+                                                {sensor.leakScore > 70 ? 'IMMEDIATE ACTION' : 'STABLE'}
                                             </span>
                                             <button className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em] hover:text-primary-500 transition-colors">
                                                 Execute Action Profile

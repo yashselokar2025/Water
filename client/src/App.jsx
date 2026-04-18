@@ -31,10 +31,10 @@ import HealthData from './components/HealthData';
 import Complaints from './components/Complaints';
 import LeakDetection from './components/LeakDetection';
 import OutbreakRisk from './components/OutbreakRisk';
-import PrioritySystem from './components/PrioritySystem';
 import Auth from './components/Auth';
 import PipelineDetail from './components/PipelineDetail';
 import useOffline from './hooks/useOffline';
+import Profile from './components/Profile';
 import { detectSensorAnomaly, generateAIInsight, mergeInsightQueue } from './utils/aiEngine';
 
 const API_BASE = 'http://localhost:5000/api';
@@ -251,7 +251,6 @@ function App() {
     menuItems.splice(2, 0, { id: 'simulation-hub', path: '/simulation-hub', label: 'Simulation Hub', icon: Settings });
     menuItems.splice(5, 0, { id: 'leaks', path: '/leaks', label: 'Leak Detection', icon: AlertTriangle });
     menuItems.splice(6, 0, { id: 'risks', path: '/risks', label: 'Outbreak Risk', icon: HeartPulse });
-    menuItems.splice(7, 0, { id: 'priority', path: '/priority', label: 'Priority List', icon: AlertCircle });
   }
 
   return (
@@ -353,12 +352,18 @@ function App() {
                 {alerts.length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-black w-4 h-4 flex items-center justify-center rounded-full animate-bounce">{alerts.length}</span>}
               </button>
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm font-medium dark:text-gray-200">{user.username}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{isAdmin ? 'Authority Account' : 'Citizen Platform'}</p>
+            <div className="flex items-center space-x-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 p-2 rounded-2xl transition-all" onClick={() => navigate('/profile')}>
+              <div className="text-right hidden sm:block">
+                <p className="text-sm font-black dark:text-white uppercase tracking-tighter leading-none mb-1">{user.fullName || user.username}</p>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest">{isAdmin ? 'Authority Account' : 'Citizen Platform'}</p>
               </div>
-              <UserCircle className="text-gray-400" size={32} />
+              <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 border-2 border-white/20 shadow-lg flex items-center justify-center overflow-hidden">
+                {user.profilePicture ? (
+                  <img src={user.profilePicture} alt="User" className="w-full h-full object-cover" />
+                ) : (
+                  <UserCircle className="text-gray-400" size={32} />
+                )}
+              </div>
             </div>
           </header>
 
@@ -399,10 +404,10 @@ function App() {
               <Route path="/analytics" element={<Analytics sensors={sensors} pipelines={pipelines} selectedPipelineId={selectedPipelineId} onPipelineChange={setSelectedPipelineId} />} />
               <Route path="/water-quality" element={<WaterQuality liveSensors={sensors} pipelines={pipelines} selectedPipelineId={selectedPipelineId} onPipelineChange={setSelectedPipelineId} />} />
               <Route path="/health" element={<HealthData />} />
-              <Route path="/complaints" element={<Complaints />} />
+              <Route path="/complaints" element={<Complaints pipelines={pipelines} isAdmin={isAdmin} user={user} />} />
+              <Route path="/profile" element={<Profile user={user} onUpdate={handleLogin} />} />
               <Route path="/leaks" element={isAdmin ? <LeakDetection sensors={sensors} /> : <Dashboard kpis={kpis} aiInsights={aiInsights} />} />
               <Route path="/risks" element={isAdmin ? <OutbreakRisk /> : <Dashboard kpis={kpis} aiInsights={aiInsights} />} />
-              <Route path="/priority" element={isAdmin ? <PrioritySystem /> : <Dashboard kpis={kpis} aiInsights={aiInsights} />} />
               <Route path="/pipeline/:id" element={<PipelineDetail sensors={sensors} pipelines={pipelines} />} />
             </Routes>
           </div>

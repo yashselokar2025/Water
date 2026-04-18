@@ -115,7 +115,7 @@ const Dashboard = ({ kpis, lastUpdated, sensors: propsSensors, pipelines: propsP
                 <div className="glass-card p-8 min-h-[400px]">
                     <h3 className="text-xl font-black dark:text-white tracking-tighter uppercase mb-6">Real-Time Sensor Telemetry: {activeSensorData?.name}</h3>
                     <div style={{ width: '100%', height: '320px' }}>
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height={320}>
                             <AreaChart data={[
                                 { time: '-10m', val: (activeSensorData?.pressure || 0) + 0.15 },
                                 { time: '-5m', val: (activeSensorData?.pressure || 0) + 0.08 },
@@ -148,7 +148,7 @@ const Dashboard = ({ kpis, lastUpdated, sensors: propsSensors, pipelines: propsP
                     </div>
                 </div>
                 <div style={{ width: '100%', height: '320px' }}>
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height={320}>
                         <AreaChart data={[
                             { name: '10:00', val: 3.2, pred: 3.1 },
                             { name: '10:05', val: 3.4, pred: 3.3 },
@@ -433,24 +433,24 @@ const Dashboard = ({ kpis, lastUpdated, sensors: propsSensors, pipelines: propsP
 
                     {/* Pipeline Priority Card */}
                     <div className="glass-card p-6 border-t-4 border-t-pink-500">
-                        <h3 className="font-black dark:text-white uppercase tracking-tighter text-sm mb-4">Pipeline Priority Logic</h3>
+                        <h3 className="font-black dark:text-white uppercase tracking-tighter text-sm mb-4">System Telemetry</h3>
                         <div className="space-y-4 text-[10px] font-bold uppercase tracking-widest">
                             <div className="flex justify-between items-center">
-                                <span className="text-gray-400">Primary Focus</span>
-                                <span className="text-pink-500">{pipelines[0]?.name}</span>
+                                <span className="text-gray-400">Total Pipelines</span>
+                                <span className="text-pink-500">{pipelines.length}</span>
                             </div>
                             <div className="flex justify-between items-center">
                                 <span className="text-gray-400">Active Sensors</span>
                                 <span className="text-gray-200">{sensors.length}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-gray-400">AI Status</span>
+                                <span className="text-gray-400">Environment Status</span>
                                 <span className={aiInsights.some(i => i.type === 'CRITICAL') ? 'text-red-500' : aiInsights.some(i => i.type === 'WARNING') ? 'text-yellow-500' : 'text-emerald-500'}>
-                                    {aiInsights.some(i => i.type === 'CRITICAL') ? 'CRITICAL' : aiInsights.some(i => i.type === 'WARNING') ? 'WARNING' : 'NOMINAL'}
+                                    {aiInsights.some(i => i.type === 'CRITICAL') ? 'STABLE' : 'NOMINAL'}
                                 </span>
                             </div>
                             <p className="text-[9px] text-gray-500 font-medium normal-case tracking-normal border-t dark:border-gray-700 pt-3 mt-2">
-                                * Priority derived from real-time deviation analysis across active sensor nodes.
+                                * System health derived from real-time deviation analysis across active sensor nodes.
                             </p>
                         </div>
                     </div>

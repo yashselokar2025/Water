@@ -178,7 +178,7 @@ const Analytics = ({ sensors: propsSensors, pipelines = [], selectedPipelineId, 
 
                         <div className="flex-1" style={{ position: 'relative', width: '100%', minHeight: '380px' }}>
                             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-                                <ResponsiveContainer width="100%" height="100%">
+                                <ResponsiveContainer width="100%" height={380}>
                                     <LineChart data={data}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} />
                                         <XAxis dataKey="time" stroke="#9ca3af" tick={{ fontSize: 10, fontWeight: 800 }} axisLine={false} />
