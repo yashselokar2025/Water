@@ -38,8 +38,10 @@ import {
 } from 'recharts';
 import axios from 'axios';
 import { exportToCSV } from '../utils/csvExport';
+import { useLanguage } from '../context/LanguageContext';
 
 const Dashboard = ({ kpis, lastUpdated, sensors: propsSensors, pipelines: propsPipelines, aiInsights = [] }) => {
+    const { t } = useLanguage();
     const navigate = useNavigate();
     const [selectedPipelineId, setSelectedPipelineId] = useState('all');
     const [selectedSensorId, setSelectedSensorId] = useState('all');
@@ -87,11 +89,11 @@ const Dashboard = ({ kpis, lastUpdated, sensors: propsSensors, pipelines: propsP
 
     // 2. VIEW MODES DATA
     const getGlobalKPIs = () => [
-        { label: 'Network Health', value: '94.2%', icon: Waves, color: 'text-emerald-500', trend: '+0.4%' },
-        { label: 'Active Pipelines', value: pipelines.length, icon: ShieldAlert, color: 'text-blue-500', trend: 'Stable' },
-        { label: 'Global Risk Index', value: 'Low', icon: Brain, color: 'text-primary-500', trend: '-2%' },
-        { label: 'Total Sensors', value: sensors.length, icon: Activity, color: 'text-purple-500', trend: 'Live' },
-        { label: 'Leak Alerts', value: activeAlerts.filter(a => a.type === 'LEAK').length, icon: AlertCircle, color: 'text-red-500', trend: 'Watch' },
+        { label: t('dashboard.systemHealth'), value: '94.2%', icon: Waves, color: 'text-emerald-500', trend: '+0.4%' },
+        { label: t('nav.map'), value: pipelines.length, icon: ShieldAlert, color: 'text-blue-500', trend: 'Stable' },
+        { label: t('dashboard.leakProbability'), value: 'Low', icon: Brain, color: 'text-primary-500', trend: '-2%' },
+        { label: t('dashboard.activeSensors'), value: sensors.length, icon: Activity, color: 'text-purple-500', trend: 'Live' },
+        { label: t('dashboard.criticalAlerts'), value: activeAlerts.filter(a => a.type === 'LEAK').length, icon: AlertCircle, color: 'text-red-500', trend: 'Watch' },
     ];
 
     const getPipelineKPIs = () => [
@@ -183,8 +185,8 @@ const Dashboard = ({ kpis, lastUpdated, sensors: propsSensors, pipelines: propsP
                         <LayoutDashboard size={20} />
                     </div>
                     <div>
-                        <h2 className="text-lg font-black dark:text-white uppercase tracking-tighter">Command Center</h2>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Selected: {selectedPipelineId === 'all' ? 'Network' : activePipeData?.name}</p>
+                        <h2 className="text-lg font-black dark:text-white uppercase tracking-tighter">{t('dashboard.title')}</h2>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t('dashboard.subtitle')}</p>
                     </div>
                 </div>
 
@@ -314,13 +316,12 @@ const Dashboard = ({ kpis, lastUpdated, sensors: propsSensors, pipelines: propsP
                                 <Zap size={18} className="text-primary-500 mr-2" />
                                 AI Diagnostic Queue
                             </h3>
-                            <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${
-                                aiInsights.some(i => i.type === 'CRITICAL')
-                                    ? 'bg-red-500 text-white animate-pulse'
-                                    : aiInsights.some(i => i.type === 'WARNING')
-                                        ? 'bg-yellow-500 text-white'
-                                        : 'bg-emerald-500/20 text-emerald-500'
-                            }`}>
+                            <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${aiInsights.some(i => i.type === 'CRITICAL')
+                                ? 'bg-red-500 text-white animate-pulse'
+                                : aiInsights.some(i => i.type === 'WARNING')
+                                    ? 'bg-yellow-500 text-white'
+                                    : 'bg-emerald-500/20 text-emerald-500'
+                                }`}>
                                 {aiInsights.some(i => i.type === 'CRITICAL') ? 'CRITICAL' :
                                     aiInsights.some(i => i.type === 'WARNING') ? 'WARNING' : 'NOMINAL'}
                             </span>
@@ -348,7 +349,7 @@ const Dashboard = ({ kpis, lastUpdated, sensors: propsSensors, pipelines: propsP
                             /* ── Structured Insight Cards ───────────────────── */
                             aiInsights.map((insight) => {
                                 const isCritical = insight.type === 'CRITICAL';
-                                const isWarning  = insight.type === 'WARNING';
+                                const isWarning = insight.type === 'WARNING';
                                 const color = isCritical ? 'red' : isWarning ? 'yellow' : 'blue';
                                 const borderClass = isCritical
                                     ? 'border-l-red-500 bg-red-500/5'
@@ -356,7 +357,7 @@ const Dashboard = ({ kpis, lastUpdated, sensors: propsSensors, pipelines: propsP
                                         ? 'border-l-yellow-400 bg-yellow-500/5'
                                         : 'border-l-blue-500 bg-blue-500/5';
                                 const labelClass = isCritical ? 'text-red-500' : isWarning ? 'text-yellow-500' : 'text-blue-500';
-                                const badgeBg   = isCritical ? 'bg-red-500/15 text-red-500' : isWarning ? 'bg-yellow-500/15 text-yellow-500' : 'bg-blue-500/15 text-blue-400';
+                                const badgeBg = isCritical ? 'bg-red-500/15 text-red-500' : isWarning ? 'bg-yellow-500/15 text-yellow-500' : 'bg-blue-500/15 text-blue-400';
 
                                 return (
                                     <div
@@ -414,9 +415,8 @@ const Dashboard = ({ kpis, lastUpdated, sensors: propsSensors, pipelines: propsP
                                         <div className="mt-3">
                                             <div className="w-full bg-gray-100 dark:bg-gray-700 h-1 rounded-full overflow-hidden">
                                                 <div
-                                                    className={`h-full rounded-full transition-all duration-1000 ${
-                                                        isCritical ? 'bg-red-500' : isWarning ? 'bg-yellow-400' : 'bg-blue-500'
-                                                    }`}
+                                                    className={`h-full rounded-full transition-all duration-1000 ${isCritical ? 'bg-red-500' : isWarning ? 'bg-yellow-400' : 'bg-blue-500'
+                                                        }`}
                                                     style={{ width: `${insight.confidence}%` }}
                                                 />
                                             </div>

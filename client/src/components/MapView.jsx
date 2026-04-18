@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { Search, MapPin, Navigation, Info, Crosshair, PenTool, Filter, Eye, EyeOff, BarChart3, AlertCircle, ChevronRight, Activity, X, RefreshCcw } from 'lucide-react';
 import axios from 'axios';
+import { useLanguage } from '../context/LanguageContext';
 
 // Fix for default leaflet icons
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
@@ -38,6 +39,7 @@ const MapEvents = ({ onMapClick, drawingMode }) => {
 };
 
 const MapView = ({ sensors, pipelines, isAdmin, onCoordinateSelect, drawingMode, tempPath, selectedCoord, filterPipelineId, onFilterChange }) => {
+    const { t } = useLanguage();
     const navigate = useNavigate();
     const location = useLocation();
     const isMainGisView = location.pathname === '/map';
@@ -182,7 +184,7 @@ const MapView = ({ sensors, pipelines, isAdmin, onCoordinateSelect, drawingMode,
                         value={searchQuery}
                         onChange={handleSearch}
                         onKeyDown={(e) => e.key === 'Enter' && triggerSearch()}
-                        placeholder="Search sensor, pipeline, location..."
+                        placeholder={t('map.searchPlaceholder')}
                         className="flex-1 bg-transparent border-none py-3 px-2 text-sm font-black dark:text-white outline-none placeholder:text-gray-400"
                     />
                 </div>
@@ -210,14 +212,14 @@ const MapView = ({ sensors, pipelines, isAdmin, onCoordinateSelect, drawingMode,
                             !isSearching && (
                                 <div className="p-8 text-center">
                                     <Info size={32} className="mx-auto text-gray-300 mb-2" />
-                                    <p className="text-xs font-black text-gray-400 uppercase tracking-widest">No infrastructure or location matches found</p>
+                                    <p className="text-xs font-black text-gray-400 uppercase tracking-widest">{t('map.noResults')}</p>
                                 </div>
                             )
                         )}
                         {isSearching && searchResults.length === 0 && (
                             <div className="p-8 text-center">
                                 <RefreshCcw size={32} className="mx-auto text-primary-500 mb-2 animate-spin" />
-                                <p className="text-xs font-black text-primary-500 uppercase tracking-widest">Broadcasting Search Query...</p>
+                                <p className="text-xs font-black text-primary-500 uppercase tracking-widest">{t('map.broadcasting')}</p>
                             </div>
                         )}
                     </div>

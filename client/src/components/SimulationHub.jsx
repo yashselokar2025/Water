@@ -32,10 +32,12 @@ import {
     ArrowRight
 } from 'lucide-react';
 import MapView from './MapView';
+import { useLanguage } from '../context/LanguageContext';
 
 const API_BASE = 'http://localhost:5000/api';
 
 const SimulationHub = ({ sensors, fetchData }) => {
+    const { t } = useLanguage();
     const [pipelines, setPipelines] = useState([]);
     const [activeTab, setActiveTab] = useState('infrastructure');
     const [drawingMode, setDrawingMode] = useState(null);
@@ -324,18 +326,18 @@ const SimulationHub = ({ sensors, fetchData }) => {
                                             onClick={() => setDrawingMode(drawingMode === 'sensor' ? null : 'sensor')}
                                             className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${drawingMode === 'sensor' ? 'bg-blue-500 text-white' : 'bg-blue-500/10 text-blue-500'}`}
                                         >
-                                            {drawingMode === 'sensor' ? 'LOCATING...' : 'Locate on Map'}
+                                            {drawingMode === 'sensor' ? t('common.locating') : t('common.locateOnMap')}
                                         </button>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
-                                        <input value={newSensor.name} onChange={e => setNewSensor({ ...newSensor, name: e.target.value })} placeholder="Node Name" className="bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-white/5 p-3 rounded-xl text-xs font-bold dark:text-white outline-none" />
+                                        <input value={newSensor.name} onChange={e => setNewSensor({ ...newSensor, name: e.target.value })} placeholder={t('common.nodeName')} className="bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-white/5 p-3 rounded-xl text-xs font-bold dark:text-white outline-none" />
                                         <select value={newSensor.pipeline_id} onChange={e => setNewSensor({ ...newSensor, pipeline_id: e.target.value })} className="bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-white/5 p-3 rounded-xl text-[10px] font-black dark:text-white outline-none">
-                                            <option value="">Select Parent</option>
+                                            <option value="">{t('common.selectParent')}</option>
                                             {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                         </select>
                                     </div>
                                     <button disabled={!newSensor.lat || !newSensor.name} onClick={handleAddSensor} className="w-full bg-blue-500 hover:bg-blue-600 disabled:opacity-30 text-white py-3 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
-                                        <Send size={14} /> Deploy Node
+                                        <Send size={14} /> {t('common.deployNode')}
                                     </button>
                                 </div>
 
@@ -345,12 +347,12 @@ const SimulationHub = ({ sensors, fetchData }) => {
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
                                         <h3 className="text-xs font-black dark:text-white uppercase tracking-widest flex items-center gap-2">
-                                            <Database size={16} className="text-gray-400" /> Infrastructure Inventory
+                                            <Database size={16} className="text-gray-400" /> {t('simulation.inventory')}
                                         </h3>
                                         <div className="relative">
                                             <input
                                                 type="text"
-                                                placeholder="Search..."
+                                                placeholder={t('simulation.search')}
                                                 value={inventorySearch}
                                                 onChange={(e) => setInventorySearch(e.target.value)}
                                                 className="bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-white/5 px-3 py-1 rounded-lg text-[10px] font-bold outline-none focus:border-primary-500/50"
@@ -497,7 +499,7 @@ const SimulationHub = ({ sensors, fetchData }) => {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

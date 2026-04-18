@@ -36,10 +36,12 @@ import PipelineDetail from './components/PipelineDetail';
 import useOffline from './hooks/useOffline';
 import Profile from './components/Profile';
 import { detectSensorAnomaly, generateAIInsight, mergeInsightQueue } from './utils/aiEngine';
+import { useLanguage } from './context/LanguageContext';
 
 const API_BASE = 'http://localhost:5000/api';
 
 function App() {
+  const { language, toggleLanguage, t } = useLanguage();
   const [user, setUser] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [darkMode, setDarkMode] = useState(true);
@@ -153,16 +155,16 @@ function App() {
       const { leakScore, contaminationLevel } = detectSensorAnomaly(sensor, neighbors);
 
       // ── SEPARATE temporal tracking ───────────────────────────────────
-      const leakKey   = `${sensor.id}-LEAK`;
+      const leakKey = `${sensor.id}-LEAK`;
       const contamKey = `${sensor.id}-CONTAMINATION`;
 
-      if (leakScore >= 35)            persistence[leakKey]   = (persistence[leakKey]   || 0) + 1;
-      else                            delete persistence[leakKey];
+      if (leakScore >= 35) persistence[leakKey] = (persistence[leakKey] || 0) + 1;
+      else delete persistence[leakKey];
 
-      if (contaminationLevel >= 60)   persistence[contamKey] = (persistence[contamKey] || 0) + 1;
-      else                            delete persistence[contamKey];
+      if (contaminationLevel >= 60) persistence[contamKey] = (persistence[contamKey] || 0) + 1;
+      else delete persistence[contamKey];
 
-      const leakCycles   = persistence[leakKey]   || 0;
+      const leakCycles = persistence[leakKey] || 0;
       const contamCycles = persistence[contamKey] || 0;
 
       // ── Generate insight ─────────────────────────────────────────────
@@ -344,6 +346,13 @@ function App() {
                 <span className="font-black text-[10px] text-emerald-500 uppercase tracking-widest">Live Flow</span>
                 <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span>
               </div>
+              <button
+                onClick={toggleLanguage}
+                className="flex items-center space-x-2 bg-primary-500/10 text-primary-500 px-4 py-2 rounded-2xl border border-primary-500/20 hover:bg-primary-500/20 transition-all font-black text-[10px] uppercase tracking-widest"
+              >
+                <MessageSquare size={16} />
+                <span>{language === 'en' ? 'Hindi' : 'English'}</span>
+              </button>
               <button
                 onClick={() => setIsAlertHistoryOpen(!isAlertHistoryOpen)}
                 className="relative p-2 bg-gray-100 dark:bg-gray-700 rounded-xl hover:bg-gray-200 transition-all group"
