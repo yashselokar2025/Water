@@ -243,6 +243,50 @@ const aiEngine = {
         return "ALL SYSTEMS NOMINAL";
     },
 
+    // --- LAYER 7: PRESCRIPTIVE ACTION QUEUE (Critical Focus Mode) ---
+    getPrescriptiveActions: (sensor, neighbors = [], history = []) => {
+        const detection = aiEngine.detectAnomalies(sensor, neighbors, history);
+        const actions = [];
+
+        // 1. CRITICAL LEAK (RED)
+        if (detection.leakScore > 40) {
+            actions.push({
+                type: 'CRITICAL',
+                condition: 'CRITICAL PIPE LEAK',
+                atNode: sensor.name,
+                explanation: `Detected pressure drop of ${detection.detectionInsights.find(i => i.includes('Pressure'))?.split(': ')[1] || 'significant amount'} with abnormal flow oscillation.`,
+                impact: 'Causes volumetric loss and service interruption in surrounding sectors.',
+                priority: 'URGENT'
+            });
+        }
+
+        // 2. CONTAMINATION WARNING (YELLOW)
+        if (sensor.turbidity > 2.5 || sensor.tds > 800) {
+            actions.push({
+                type: 'WARNING',
+                condition: 'QUALITY CONTAMINATION',
+                atNode: sensor.name,
+                explanation: `Turbidity (${sensor.turbidity.toFixed(1)} NTU) exceeds safe drinking water standards.`,
+                impact: 'Risk of sediment buildup and potential health safety violation.',
+                priority: 'HIGH'
+            });
+        }
+
+        // 3. SYSTEM STABLE (GREEN)
+        if (actions.length === 0) {
+            actions.push({
+                type: 'STABLE',
+                condition: 'NOMINAL OPERATION',
+                atNode: sensor.name,
+                explanation: 'Telemetry data indicates all hydraulic and quality parameters are within nominal equilibrium.',
+                impact: 'Optimized network health and consistent water delivery.',
+                priority: 'TARGET'
+            });
+        }
+
+        return actions;
+    },
+
     // --- UTILITY: Simplified Trend Analysis ---
     predictTrends: (sensor, history = []) => {
         if (!history || history.length === 0) return { trend: 'Stable', prediction: sensor.pressure };

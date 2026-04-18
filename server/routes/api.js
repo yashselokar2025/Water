@@ -97,6 +97,35 @@ router.get('/sensors', async (req, res) => {
     }
 });
 
+// --- Pipeline Aggregate Analytics ---
+router.get('/analytics/pipeline/:pipelineId', async (req, res) => {
+    const { pipelineId } = req.params;
+    try {
+        const rows = await db.query(`
+            SELECT timestamp as time, 
+                   AVG(pressure) as pressure, 
+                   AVG(flow) as flow, 
+                   AVG(ph) as ph, 
+                   AVG(turbidity) as turbidity, 
+                   AVG(tds) as tds
+            FROM sensor_readings 
+            WHERE sensor_id IN (SELECT id FROM sensors WHERE pipeline_id = ?)
+            GROUP BY timestamp
+            ORDER BY timestamp DESC
+            LIMIT 50
+        `, [pipelineId]);
+
+        const data = rows.reverse().map(r => ({
+            ...r,
+            time: new Date(r.time.replace(' ', 'T')).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }));
+
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // --- Analytics (Historical) - Fixed path ---
 router.get('/analytics/:sensorId', async (req, res) => {
     const { sensorId } = req.params;
@@ -413,6 +442,9 @@ router.get('/ai/priority-maintenance', async (req, res) => {
     }
 });
 
+// Anti-Spam Cache for AI Actions
+const actionCache = new Map();
+
 router.get('/ai/insights', async (req, res) => {
     try {
         const sensors = await db.query('SELECT * FROM sensors');
@@ -430,6 +462,67 @@ router.get('/ai/insights', async (req, res) => {
     }
 });
 
+router.get('/ai/actions/:sensorId', async (req, res) => {
+    const { sensorId } = req.params;
+    try {
+        const sensors = await db.query('SELECT * FROM sensors');
+        const now = Date.now();
+        let diagnosticResults = [];
 
+        if (sensorId === 'all') {
+            // Global Aggregator: Fetch anomalies from ALL sensors
+            for (const sensor of sensors) {
+                const history = await db.query(
+                    'SELECT pressure, flow, ph, turbidity, tds FROM sensor_readings WHERE sensor_id = ? ORDER BY timestamp DESC LIMIT 5',
+                    [sensor.id]
+                );
+                const neighbors = sensors.filter(s => s.pipeline_id === sensor.pipeline_id && s.id !== sensor.id);
+                const actions = aiEngine.getPrescriptiveActions(sensor, neighbors, history);
+
+                // Only collect non-stable actions for global mode to reduce noise
+                diagnosticResults.push(...actions.filter(a => a.type !== 'STABLE'));
+            }
+            // Sort by priority and limit
+            diagnosticResults.sort((a, b) => (a.type === 'CRITICAL' ? -1 : 1));
+            diagnosticResults = diagnosticResults.slice(0, 5);
+        } else {
+            // Specific Sensor Mode
+            const sensor = sensors.find(s => String(s.id) === String(sensorId));
+            if (!sensor) return res.status(404).json({ error: 'Sensor not found' });
+
+            const history = await db.query(
+                'SELECT pressure, flow, ph, turbidity, tds FROM sensor_readings WHERE sensor_id = ? ORDER BY timestamp DESC LIMIT 5',
+                [sensorId]
+            );
+            const neighbors = sensors.filter(s => s.pipeline_id === sensor.pipeline_id && s.id !== sensor.id);
+            diagnosticResults = aiEngine.getPrescriptiveActions(sensor, neighbors, history);
+        }
+
+        // Anti-Spam: 3 second cooldown
+        const filteredActions = diagnosticResults.filter(action => {
+            const cacheKey = `${sensorId}-${action.atNode}-${action.condition}`;
+            const lastSeen = actionCache.get(cacheKey);
+            if (lastSeen && (now - lastSeen) < 3000) return false;
+            actionCache.set(cacheKey, now);
+            return true;
+        });
+
+        // Default if empty
+        if (filteredActions.length === 0) {
+            filteredActions.push({
+                type: 'STABLE',
+                condition: 'SYSTEM NOMINAL',
+                atNode: 'NETWORK',
+                explanation: 'Operational parameters across active sectors are within statistical equilibrium.',
+                impact: 'Continuous service reliability maintained at 99.9%.',
+                priority: 'TARGET'
+            });
+        }
+
+        res.json(filteredActions);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
 module.exports = router;
